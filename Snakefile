@@ -36,7 +36,8 @@ rule all:
         phenopath_fdata,
         "data/simulations/all_pseudotime_correlations.csv",
         dex_qvals,
-        "data/simulations/roc.csv"
+        "data/simulations/roc.csv",
+        "data/simulations/roc_phenopath.csv"
 
 rule make_scesets:
     output:
