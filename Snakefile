@@ -91,4 +91,13 @@ rule roc:
     shell:
         "Rscript analysis/simulations/calculate_auc.R --output_file {output}"
 
+rule roc_phenopath:
+    input:
+        scesets,
+        phenopath_fdata
+    output:
+        "data/simulations/roc_phenopath.csv"
+    shell:
+        "Rscript analysis/simulations/calculate_auc_phenopath.R --output_file {output}"
+
 
