@@ -61,6 +61,7 @@ calculate_auc <- function(output_file = "output.csv") {
   df_split$sceset_path <- sceset_paths
   
   rocs <- sapply(seq_len(nrow(df_split)), function(i) {
+    print(i)
     calculate_rocs(df_split[i,])
   })
   

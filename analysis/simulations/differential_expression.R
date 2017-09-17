@@ -34,7 +34,7 @@ dex_analysis <- function(input_sceset = "sce.rds",
   interaction_pval <- fit$p.value[,"x:pseudotime"]
   interaction_qval <- p.adjust(interaction_pval, method = "BH")
   
-  qvals <- rep(NA, ncol(sce))
+  qvals <- rep(NA, nrow(sce))
   qvals[cells_non_na] <- interaction_qval
   
   output_data_frame <- data_frame(qval = qvals)
