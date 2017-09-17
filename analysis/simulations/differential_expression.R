@@ -14,6 +14,8 @@ dex_analysis <- function(input_sceset = "sce.rds",
   pseudotime_df <- read_csv(pseudotime_file)
   pseudotime <- pseudotime_df$pst
   
+  cells_non_na <- which(!is.na(pseudotime))
+  
   dmat <- dplyr::select(pData(sce), x) %>% 
     dplyr::mutate(pseudotime)
   
@@ -22,7 +24,7 @@ dex_analysis <- function(input_sceset = "sce.rds",
   
 
   
-  dge <- DGEList(counts = counts(sce))
+  dge <- DGEList(counts = counts(sce[, cells_non_na]))
   
   v <- voom(dge, design, plot = FALSE)
   
@@ -32,7 +34,10 @@ dex_analysis <- function(input_sceset = "sce.rds",
   interaction_pval <- fit$p.value[,"x:pseudotime"]
   interaction_qval <- p.adjust(interaction_pval, method = "BH")
   
-  output_data_frame <- data_frame(qval = interaction_qval)
+  qvals <- rep(NA, ncol(sce))
+  qvals[cells_non_na] <- interaction_qval
+  
+  output_data_frame <- data_frame(qval = qvals)
   write_csv(output_data_frame, output_file)
 }
 
