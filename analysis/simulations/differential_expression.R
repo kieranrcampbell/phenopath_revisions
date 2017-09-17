@@ -19,7 +19,7 @@ dex_analysis <- function(input_sceset = "sce.rds",
   dmat <- dplyr::select(pData(sce), x) %>% 
     dplyr::mutate(pseudotime)
   
-  design <- model.matrix(~ x + pseudotime + x:pseudotime, data = dmat)
+  design <- model.matrix(~ x + pseudotime + x:pseudotime, data = dmat[cells_non_na, ])
   
   
 
@@ -34,10 +34,10 @@ dex_analysis <- function(input_sceset = "sce.rds",
   interaction_pval <- fit$p.value[,"x:pseudotime"]
   interaction_qval <- p.adjust(interaction_pval, method = "BH")
   
-  qvals <- rep(NA, nrow(sce))
-  qvals[cells_non_na] <- interaction_qval
+  # qvals <- rep(NA, nrow(sce))
+  # qvals[cells_non_na] <- interaction_qval
   
-  output_data_frame <- data_frame(qval = qvals)
+  output_data_frame <- data_frame(qval = interaction_qval)
   write_csv(output_data_frame, output_file)
 }
 
