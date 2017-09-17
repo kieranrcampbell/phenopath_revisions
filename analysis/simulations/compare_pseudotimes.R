@@ -58,7 +58,6 @@ parse_pseudotimes <- function(output_file = "output.csv") {
   df_split$sceset_path <- sceset_paths
   
   kendall_correlations <- sapply(seq_len(nrow(df_split)), function(i) {
-    print(i)
     correlate_pseudotimes(df_split[i,])
     })
   

@@ -81,6 +81,13 @@ rule differential_expression:
         "Rscript analysis/simulations/differential_expression.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output}"
 
 
-
+rule roc:
+    input:
+        scesets,
+        dex_qvals
+    output:
+        "data/simulations/roc.csv"
+    shell:
+        "Rscript analysis/simulations/calculate_auc.R --output_file {output}"
 
 
