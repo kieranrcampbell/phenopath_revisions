@@ -42,6 +42,7 @@ calculate_rocs <- function(df_small) {
   qvals <- read_csv(df_small$path)$qval
   sce <- readRDS(df_small$sceset_path)
   is_interaction <- 1 * (fData(sce)$is_interaction)
+  
   roc_obj <- roc(is_interaction, qvals)
   return(roc_obj$auc[1])
 }
@@ -61,7 +62,7 @@ calculate_auc <- function(output_file = "output.csv") {
   df_split$sceset_path <- sceset_paths
   
   rocs <- sapply(seq_len(nrow(df_split)), function(i) {
-    print(i)
+    print(df_small[,1:5])
     calculate_rocs(df_split[i,])
   })
   
