@@ -95,7 +95,8 @@ simulate_mean_function <- function(N, G, prop_interaction){
   
   G_pst <- round(G * (1 - prop_interaction))
   G_int <- G - G_pst
-  G_class <- tabulate(sample(1:4, G_int, replace = TRUE))
+  G_class <- rep(round(G_int / 4), 3)
+  G_class <- c(G_class, G_int - sum(G_class))
   
   k_lower <- 2
   k_upper <- 20
