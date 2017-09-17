@@ -26,14 +26,16 @@ scesets = [sim_data_dir + "scesets/sceset_" + s + ".rds" for s in sig_str]
 pseudotimes_no_pp = [sim_data_dir + "pseudotimes/pseudofit_" + s + ".csv" for s in pseudotime_str]
 pseudotimes_phenopath = [sim_data_dir + "pseudotimes/phenopathfit_" + s + ".csv" for s in phenopath_str]
 
+dex_qvals = [sim_data_dir + "qvals/qvals_" + s + ".csv" for s in pseudotime_str]
+
 phenopath_fdata = [sim_data_dir + "phenopath_fdata/fdata_" + s + ".csv" for s in phenopath_str]
 
 
 rule all:
     input:
-        pseudotimes_no_pp,
-        pseudotimes_phenopath,
-        phenopath_fdata
+        phenopath_fdata,
+        "data/simulations/all_pseudotime_correlations.csv",
+        dex_qvals
 
 rule make_scesets:
     output:
@@ -68,5 +70,17 @@ rule parse_pseudotime_results:
         "data/simulations/all_pseudotime_correlations.csv"
     shell:
         "Rscript analysis/simulations/compare_pseudotimes.R --output_file {output}"
+
+rule differential_expression:
+    input:
+        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv",
+        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}.rds"
+    output:
+        "data/simulations/qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv"
+    shell:
+        "Rscript analysis/simulations/differential_expression.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output}"
+
+
+
 
 

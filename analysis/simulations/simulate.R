@@ -7,6 +7,8 @@ library(polyester)
 library(Biostrings)
 library(readr)
 
+set.seed(12345L)
+
 sigmoid <- function(x) {
   1 / (1 + exp(-x))
 }
