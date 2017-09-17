@@ -40,6 +40,7 @@ parse_sceset_path <- function(df_small) {
 
 calculate_rocs <- function(df_small) {
   qvals <- read_csv(df_small$path)$qval
+  if(!file.exists(df_small$sceset_path)) return(-1)
   sce <- readRDS(df_small$sceset_path)
   is_interaction <- 1 * (fData(sce)$is_interaction)
   
@@ -66,7 +67,7 @@ calculate_auc <- function(output_file = "output.csv") {
     calculate_rocs(df_split[i,])
   })
   
-  df_split$rocs <- roc
+  df_split$auc <- rocs
   
   write_csv(df_split, output_file)
   
