@@ -1,8 +1,8 @@
 
 
-Ns = [200]
+Ns = [200, 500]
 Gs = [500]
-prop_interactions = [0.05, 0.1, 0.2, 0.3, 0.4]
+prop_interactions = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5]
 reps = 40
 algorithms_no_pp = ["dpt", "monocle2", "tscan"]
 

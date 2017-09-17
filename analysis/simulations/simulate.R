@@ -216,10 +216,10 @@ simulate_counts <- function(N, G, prop_interaction, replication) {
 
 ## Make sure these line up with the snakefile
 
-Ns <- 200
+Ns <- c(200, 500)
 Gs <- 500
 
-prop_interactions <- c(0.05, 0.1, 0.2, 0.3, 0.4)
+prop_interactions <- c(0.05, 0.1, 0.2, 0.3, 0.4, 0.5)
 reps <- 40
 
 for(N in Ns) {
