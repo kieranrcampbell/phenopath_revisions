@@ -53,11 +53,11 @@ calculate_auc <- function(output_file = "output.csv",
 
   sim_dir <- file.path("data", "simulations")
   
-  all_qvals <- dir(file.path(sim_dir, "qvals"))
+  all_qvals <- dir(file.path(sim_dir, qval_dir))
   
   split <- str_split(all_qvals, "_")
   
-  df_split <- bind_rows(Map(parse_split, split, file.path(sim_dir, "qvals", all_qvals)))
+  df_split <- bind_rows(Map(parse_split, split, file.path(sim_dir, qval_dir, all_qvals)))
   
   sceset_paths <- sapply(seq_len(nrow(df_split)), function(i) parse_sceset_path(df_split[i,]))
   
