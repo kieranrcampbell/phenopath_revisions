@@ -37,6 +37,7 @@ datasets = ["chu", "dulken", "hsc", "trapnell"]
 
 lin_scesets = expand("data/scesets/{dataset}-sce.rds", dataset = datasets)
 linear_psts = expand("data/linpst/{dataset}_pseudotimes.csv", dataset = datasets)
+linear_coefs = expand("data/lincoef/{dataset}.csv", dataset = datasets)
 
 
 rule all:
@@ -47,7 +48,8 @@ rule all:
         "data/simulations/roc.csv",
         "data/simulations/roc_deseq.csv",
         "data/simulations/roc_phenopath.csv",
-        linear_psts
+        linear_psts,
+        linear_coefs
 
 
 # Simulations ----------------
@@ -145,9 +147,10 @@ rule fit_linear:
     input:
         "data/scesets/{dataset}-sce.rds"
     output:
-        "data/linpst/{dataset}_pseudotimes.csv"
+        pst="data/linpst/{dataset}_pseudotimes.csv",
+        coefs="data/lincoef/{dataset}.csv"
     shell:
-        "Rscript analysis/linear/pseudotime_inference.R --input_file {input} --output_file {output} --dataset {wildcards.dataset}"
+        "Rscript analysis/linear/pseudotime_inference.R --input_file {input} --output_file {output.pst} --output_linear_model {output.coefs} --dataset {wildcards.dataset}"
 
 
 

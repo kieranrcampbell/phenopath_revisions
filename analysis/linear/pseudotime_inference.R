@@ -1,5 +1,5 @@
 
-
+library(scater)
 library(dpt)
 library(monocle)
 library(TSCAN)
@@ -41,9 +41,21 @@ fit_pca <- function(exprs_mat) {
   return(pca$x[,1])
 }
 
+fit_linear_model <- function(pst_df, sce) {
+  get_pval <- function(pst, y) {
+    s <- summary(lm(y ~ pst, data = pst_df, na.omit = TRUE))
+    s$coefficients[2,4]
+  }
+  
+  apply(exprs(sce), 1, function(y) {
+    apply(pst_df[,2:4], 2, get_pval, y)
+  })
+}
+
 
 pseudotime_inference <- function(input_file = "sceset.rds",
                                  output_file = "myfile.csv",
+                                 output_linear_model = "linmod.csv",
                                  dataset = "trapnell",
                                  hvg = 500) {
   
@@ -60,6 +72,8 @@ pseudotime_inference <- function(input_file = "sceset.rds",
     dataset = dataset
   )
   
+  lin_mod <- t(fit_linear_model(pst_df, sce[high_var, ]))
+  lin_mod <- apply(lin_mod, 2, p.adjust, method = "BH")
 
   write_csv(pst_df, output_file)
 }
