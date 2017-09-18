@@ -40,9 +40,11 @@ parse_sceset_path <- function(df_small) {
 
 calculate_rocs <- function(df_small) {
   qvals <- read_csv(df_small$path)$qval
+  if(any(is.na(qvals))) return(-1)
   if(!file.exists(df_small$sceset_path)) return(-1)
   sce <- readRDS(df_small$sceset_path)
   is_interaction <- 1 * (fData(sce)$is_interaction)
+  
   
   roc_obj <- roc(is_interaction, 1 - qvals)
   return(roc_obj$auc[1])
