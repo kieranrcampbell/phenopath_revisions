@@ -18,8 +18,8 @@ dex_analysis_deseq2 <- function(input_sceset = "sce.rds",
   sce$pseudotime <- pseudotime
   sce$x <- factor(sce$x)
   
-  count_mat <- counts(sce)
-  coldata = pData(sce)
+  count_mat <- counts(sce[, cells_non_na])
+  coldata = pData(sce[, cells_non_na])
   
   dds <- DESeqDataSetFromMatrix(countData = count_mat,
                                 colData = coldata, 
