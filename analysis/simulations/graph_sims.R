@@ -44,6 +44,11 @@ ggplot(df, aes(x = pst, y = expression, color = x, group = x)) +
   labs(y = "Simulated expression") +
   xlab(expression(Pseudotime ~ symbol('\256')))
 
+saveRDS(last_plot(), "figs/simulation_example.rds")
+
+
+
+
 
 
 

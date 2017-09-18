@@ -33,6 +33,12 @@ dex_qvals_deseq2 = [sim_data_dir + "deseq2_qvals/qvals_" + s + ".csv" for s in p
 phenopath_fdata = [sim_data_dir + "phenopath_fdata/fdata_" + s + ".csv" for s in phenopath_str]
 
 
+datasets = ["chu", "dulken", "li", "hsc"]
+
+lin_scesets = expand("data/scesets/{dataset}-sce.rds", dataset = datasets)
+linear_psts = expand("data/linpst/{dataset}_pseudotimes.csv", dataset = datasets)
+
+
 rule all:
     input:
         phenopath_fdata,
@@ -40,7 +46,11 @@ rule all:
         dex_qvals,
         "data/simulations/roc.csv",
         "data/simulations/roc_deseq.csv",
-        "data/simulations/roc_phenopath.csv"
+        "data/simulations/roc_phenopath.csv",
+        linear_psts
+
+
+# Simulations ----------------
 
 rule make_scesets:
     output:
@@ -121,5 +131,23 @@ rule roc_phenopath:
         "data/simulations/roc_phenopath.csv"
     shell:
         "Rscript analysis/simulations/calculate_auc_phenopath.R --output_file {output}"
+
+rule sim_example_figure:
+    output:
+        "figs/simulation_example.rds"
+    shell:
+        "Rscript analysis/simulations/graph_sims.R"
+
+# Testing for linearity of pseudotime
+
+
+rule fit_linear:
+    input:
+        "data/scesets/{dataset}-sce.rds"
+    output:
+        "data/linpst/{dataset}_pseudotimes.csv"
+    shell:
+        "Rscript analysis/linear/pseudotime_inference.R --input_file {input} --output_file {output} --dataset {wildcards.dataset}"
+
 
 
