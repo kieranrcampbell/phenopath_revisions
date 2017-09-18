@@ -45,8 +45,6 @@ pseudotime_inference <- function(input_file = "sceset.rds",
                                  dataset = "trapnell",
                                  hvg = 500) {
   
-  stopifnot(algorithm %in% c("phenopath", "dpt", "tscan", "monocle2"))
-  
   sce <- readRDS(input_file)
   row_vars <- matrixStats::rowVars(exprs(sce))
   high_var <- row_vars >= sort(row_vars, decreasing = TRUE)[hvg]
