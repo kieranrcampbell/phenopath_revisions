@@ -28,6 +28,8 @@ pseudotimes_phenopath = [sim_data_dir + "pseudotimes/phenopathfit_" + s + ".csv"
 
 dex_qvals = [sim_data_dir + "qvals/qvals_" + s + ".csv" for s in pseudotime_str]
 
+dex_qvals_deseq2 = [sim_data_dir + "deseq2_qvals/qvals_" + s + ".csv" for s in pseudotime_str]
+
 phenopath_fdata = [sim_data_dir + "phenopath_fdata/fdata_" + s + ".csv" for s in phenopath_str]
 
 
@@ -82,11 +84,21 @@ rule differential_expression:
     shell:
         "Rscript analysis/simulations/differential_expression.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output}"
 
+rule differential_expression_deseq:
+    input:
+        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv",
+        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}.rds"
+    output:
+        "data/simulations/deseq2_qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv"
+    shell:
+        "Rscript analysis/simulations/differential_expression_deseq2.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output}"
+
 
 rule roc:
     input:
         scesets,
-        dex_qvals
+        dex_qvals,
+        dex_qvals_deseq2
     output:
         "data/simulations/roc.csv"
     shell:
