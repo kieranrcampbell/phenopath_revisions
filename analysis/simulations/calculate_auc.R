@@ -48,7 +48,8 @@ calculate_rocs <- function(df_small) {
   return(roc_obj$auc[1])
 }
 
-calculate_auc <- function(output_file = "output.csv") {
+calculate_auc <- function(output_file = "output.csv",
+                          qval_dir = "qvals") {
 
   sim_dir <- file.path("data", "simulations")
   

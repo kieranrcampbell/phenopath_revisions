@@ -39,6 +39,7 @@ rule all:
         "data/simulations/all_pseudotime_correlations.csv",
         dex_qvals,
         "data/simulations/roc.csv",
+        "data/simulations/roc_deseq.csv",
         "data/simulations/roc_phenopath.csv"
 
 rule make_scesets:
@@ -97,12 +98,20 @@ rule differential_expression_deseq:
 rule roc:
     input:
         scesets,
-        dex_qvals,
-        dex_qvals_deseq2
+        dex_qvals
     output:
         "data/simulations/roc.csv"
     shell:
-        "Rscript analysis/simulations/calculate_auc.R --output_file {output}"
+        "Rscript analysis/simulations/calculate_auc.R --qval_dir qvals --output_file {output}"
+
+rule roc_deseq2:
+    input:
+        scesets,
+        dex_qvals_deseq2
+    output:
+        "data/simulations/roc_deseq.csv"
+    shell:
+        "Rscript analysis/simulations/calculate_auc.R --qval_dir deseq2_qvals --output_file {output}"
 
 rule roc_phenopath:
     input:
