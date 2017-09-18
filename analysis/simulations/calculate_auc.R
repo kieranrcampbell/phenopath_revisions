@@ -44,7 +44,7 @@ calculate_rocs <- function(df_small) {
   sce <- readRDS(df_small$sceset_path)
   is_interaction <- 1 * (fData(sce)$is_interaction)
   
-  roc_obj <- roc(is_interaction, qvals)
+  roc_obj <- roc(is_interaction, 1 - qvals)
   return(roc_obj$auc[1])
 }
 
