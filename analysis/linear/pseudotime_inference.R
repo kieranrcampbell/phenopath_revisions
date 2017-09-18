@@ -4,6 +4,8 @@ library(dpt)
 library(monocle)
 library(TSCAN)
 library(aargh)
+library(dplyr)
+library(readr)
 
 fit_phenopath <- function(exprs_mat, x) {
   fit <- phenopath(t(exprs_mat), x)
@@ -59,7 +61,7 @@ pseudotime_inference <- function(input_file = "sceset.rds",
   )
   
 
-  write.csv(pst_df, output_file)
+  write_csv(pst_df, output_file)
 }
 
 aargh(pseudotime_inference)
