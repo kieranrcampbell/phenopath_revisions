@@ -74,7 +74,11 @@ pseudotime_inference <- function(input_file = "sceset.rds",
   
   lin_mod <- t(fit_linear_model(pst_df, sce[high_var, ]))
   lin_mod <- apply(lin_mod, 2, p.adjust, method = "BH")
+  
+  lin_mod <- as_data_frame(lin_mod) %>% 
+    mutate(dataset = dataset)
 
+  write_csv(lin_mod, output_linear_model)
   write_csv(pst_df, output_file)
 }
 

@@ -38,3 +38,12 @@ ggplot(dfg, aes(x = dataset, y = correlation, fill = algorithm)) +
         axis.text = element_text(size = 10))
 
 ggsave("figs/vs-pc1.png", width = 4.5, height = 3)
+
+
+# Proportion genes linear -------------------------------------------------
+
+
+
+
+
+
