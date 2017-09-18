@@ -11,7 +11,7 @@ dex_analysis_deseq2 <- function(input_sceset = "sce.rds",
   
   sce <- readRDS(input_sceset)
   pseudotime_df <- read_csv(pseudotime_file)
-  pseudotime <- scale(pseudotime_df$pst[,1])
+  pseudotime <- scale(pseudotime_df$pst)[,1]
   
   cells_non_na <- which(!is.na(pseudotime))
   
