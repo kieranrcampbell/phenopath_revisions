@@ -7,11 +7,14 @@ library(dplyr)
 
 dex_analysis_monocle <- function(input_sceset = "sce.rds",
                          pseudotime_file = "pseudotime.csv",
-                         output_file = "qvals.csv") {
+                         output_file = "qvals.csv",
+                         random = 0) {
   
   sce <- readRDS(input_sceset)
   pseudotime_df <- read_csv(pseudotime_file)
   pseudotime <- scale(pseudotime_df$pst)[,1]
+  
+  if(random == 1) pseudotime <- rnorm(ncol(sce))
   
   cells_non_na <- which(!is.na(pseudotime))
   
