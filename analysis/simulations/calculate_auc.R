@@ -1,6 +1,6 @@
 library(scater)
 library(readr)
-library(pROC)
+library(AUC)
 library(aargh)
 library(dplyr)
 library(stringr)
@@ -45,9 +45,9 @@ calculate_rocs <- function(df_small) {
   sce <- readRDS(df_small$sceset_path)
   is_interaction <- 1 * (fData(sce)$is_interaction)
   
+  roc_obj <- AUC::roc(1 - qvals, factor(is_interaction))
   
-  roc_obj <- roc(is_interaction, 1 - qvals)
-  return(roc_obj$auc[1])
+  return(AUC::auc(roc_obj))
 }
 
 calculate_auc <- function(output_file = "output.csv",

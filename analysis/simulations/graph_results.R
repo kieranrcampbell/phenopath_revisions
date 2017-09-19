@@ -73,8 +73,11 @@ aucs_phenopath <- mutate(aucs_phenopath, DE_alg = "phenopath")
 aucs_deseq <- read_csv("data/simulations/roc_deseq.csv")
 aucs_deseq <- mutate(aucs_deseq, DE_alg = "deseq2")
 
+aucs_mast <- read_csv("data/simulations/roc_mast.csv")
+aucs_mast <- mutate(aucs_mast, DE_alg = "mast")
 
-aucs <- bind_rows(aucs, aucs_phenopath, aucs_deseq)
+
+aucs <- bind_rows(aucs, aucs_phenopath, aucs_deseq, aucs_mast)
 
 aucs <- filter(aucs, auc != -1) # This is when the fit didn't work
 
@@ -93,7 +96,7 @@ dfg$N_str <- paste0(dfg$N, " cells")
 lower <- min(dfg$mean_auc) - 0.01
 upper <- 1.05
 
-voom_plot <- ggplot(filter(dfg, DE_alg != "deseq2"), aes(x = as.factor(100 * p), y = mean_auc,
+voom_plot <- ggplot(filter(dfg, DE_alg %in% c("limma", "phenopath")), aes(x = as.factor(100 * p), y = mean_auc,
                                            color = alg, group = alg)) + 
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1) +
   geom_line(size = 1.5) + 
@@ -106,7 +109,7 @@ voom_plot <- ggplot(filter(dfg, DE_alg != "deseq2"), aes(x = as.factor(100 * p),
   facet_wrap(~ N_str) +
   ylim(lower, upper)
 
-deseq_plot <- ggplot(filter(dfg, DE_alg != "limma"), aes(x = as.factor(100 * p), y = mean_auc,
+deseq_plot <- ggplot(filter(dfg, DE_alg %in% c("deseq2", "phenopath")), aes(x = as.factor(100 * p), y = mean_auc,
                 color = alg, group = alg)) + 
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1) +
   geom_line(size = 1.5) + 
@@ -119,9 +122,22 @@ deseq_plot <- ggplot(filter(dfg, DE_alg != "limma"), aes(x = as.factor(100 * p),
   facet_wrap(~ N_str) +
   ylim(lower, upper)
 
-plot_grid(voom_plot, deseq_plot, nrow = 2)
+mast_plot <- ggplot(filter(dfg, DE_alg %in% c("mast", "phenopath")), aes(x = as.factor(100 * p), y = mean_auc,
+                                                                            color = alg, group = alg)) + 
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1) +
+  geom_line(size = 1.5) + 
+  geom_point(aes(fill = alg), shape = 21, color = 'black', size = 2) +
+  scale_colour_brewer(palette = "Set2", name = "Algorithm") +
+  scale_fill_brewer(palette = "Set2", name = "Algorithm") +
+  labs(y = "Median AUC",
+       x = "% genes covariate interaction",
+       subtitle = "DE with MAST") +
+  facet_wrap(~ N_str) +
+  ylim(lower, upper)
 
-ggsave("figs/auc.png", width = 8, height = 7)
+plot_grid(voom_plot, deseq_plot, mast_plot, ncol = 1)
+
+ggsave("figs/auc.png", width = 8, height = 9)
 
 voom_paper_plot <- ggplot(filter(dfg, DE_alg != "deseq2", N == 200), aes(x = as.factor(100 * p), y = mean_auc,
                                             color = alg, group = alg)) + 
