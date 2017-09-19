@@ -21,7 +21,7 @@ dex_analysis_mast <- function(input_sceset = "sce.rds",
   
   sca <- FromMatrix(exprs(sce), pdata)
   fit <- zlm(~ x + pseudotime + x:pseudotime, sca[, cells_non_na])
-  
+
   lrt <- lrTest(fit, "x:pseudotime")
   p_value <- lrt[,3,3]
   interaction_qval <- p.adjust(p_value, method = "BH")

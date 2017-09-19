@@ -153,6 +153,9 @@ voom_paper_plot <- ggplot(filter(dfg, DE_alg != "deseq2", N == 200), aes(x = as.
   theme(legend.position = "none")
 
 
+ggplot(aucs, aes(x = factor(p), y = auc, fill = alg)) +
+  geom_boxplot() + facet_grid(N ~ DE_alg)
+
 # Paper figure ------------------------------------------------------------
 
 sim_example <- readRDS("figs/simulation_example.rds")
