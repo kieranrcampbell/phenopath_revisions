@@ -162,7 +162,7 @@ rule roc_monocle:
     output:
         "data/simulations/roc_monocle.csv"
     shell:
-        "Rscript analysis/simulations/calculate_auc.R --qval_dir mast_qvals --output_file {output}"
+        "Rscript analysis/simulations/calculate_auc.R --qval_dir monocle_qvals --output_file {output}"
 
 rule roc_phenopath:
     input:
