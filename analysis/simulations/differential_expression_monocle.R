@@ -21,6 +21,8 @@ dex_analysis_monocle <- function(input_sceset = "sce.rds",
   cds <- newCellDataSet(counts(sce), new("AnnotatedDataFrame", pData(sce)))
   
   cds <- estimateSizeFactors(cds)
+  cds <- estimateDispersions(cds)
+  
   de <- differentialGeneTest(cds, 
                              fullModelFormulaStr = "~ x + sm.ns(pseudotime) + sm.ns(pseudotime):x",
                              reducedModelFormulaStr = "~ x + sm.ns(pseudotime)")
