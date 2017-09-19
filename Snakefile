@@ -27,8 +27,8 @@ pseudotimes_no_pp = [sim_data_dir + "pseudotimes/pseudofit_" + s + ".csv" for s 
 pseudotimes_phenopath = [sim_data_dir + "pseudotimes/phenopathfit_" + s + ".csv" for s in phenopath_str]
 
 dex_qvals = [sim_data_dir + "qvals/qvals_" + s + ".csv" for s in pseudotime_str]
-
 dex_qvals_deseq2 = [sim_data_dir + "deseq2_qvals/qvals_" + s + ".csv" for s in pseudotime_str]
+dex_qvals_mast = [sim_data_dir + "mast_qvals/qvals_" + s + ".csv" for s in pseudotime_str]
 
 phenopath_fdata = [sim_data_dir + "phenopath_fdata/fdata_" + s + ".csv" for s in phenopath_str]
 
@@ -48,6 +48,7 @@ rule all:
         "data/simulations/roc.csv",
         "data/simulations/roc_deseq.csv",
         "data/simulations/roc_phenopath.csv",
+        "data/simulations/roc_mast.csv",
         linear_psts,
         linear_coefs
 
@@ -106,6 +107,15 @@ rule differential_expression_deseq:
     shell:
         "Rscript analysis/simulations/differential_expression_deseq2.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output}"
 
+rule differential_expression_mast:
+    input:
+        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv",
+        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}.rds"
+    output:
+        "data/simulations/mast_qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv"
+    shell:
+        "Rscript analysis/simulations/differential_expression_mast.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output}"
+
 
 rule roc:
     input:
@@ -124,6 +134,15 @@ rule roc_deseq2:
         "data/simulations/roc_deseq.csv"
     shell:
         "Rscript analysis/simulations/calculate_auc.R --qval_dir deseq2_qvals --output_file {output}"
+
+rule roc_mast:
+    input:
+        scesets,
+        dex_qvals_mast
+    output:
+        "data/simulations/roc_mast.csv"
+    shell:
+        "Rscript analysis/simulations/calculate_auc.R --qval_dir mast_qvals --output_file {output}"
 
 rule roc_phenopath:
     input:
