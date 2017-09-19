@@ -4,6 +4,7 @@ library(readr)
 library(aargh)
 library(magrittr)
 library(MAST)
+library(dplyr)
 
 dex_analysis_mast <- function(input_sceset = "sce.rds",
                          pseudotime_file = "pseudotime.csv",
