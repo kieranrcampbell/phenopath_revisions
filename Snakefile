@@ -175,7 +175,7 @@ rule roc_monocle:
     shell:
         "Rscript analysis/simulations/calculate_auc.R --qval_dir monocle_qvals --output_file {output}"
 
-rule roc_monocle:
+rule roc_randmonocle:
     input:
         scesets,
         dex_qvals_randmonocle
