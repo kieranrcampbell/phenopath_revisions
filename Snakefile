@@ -78,7 +78,7 @@ rule fit_pseudotimes_no_pp:
 
 rule fit_pseudotimes_phenopath:
     input:
-        "data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}_{noise}.rds"
+        "data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}.rds"
     output:
         pseudotime="data/simulations/pseudotimes/phenopathfit_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_phenopath.csv",
         fdata="data/simulations/phenopath_fdata/fdata_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_phenopath.csv"
