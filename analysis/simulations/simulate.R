@@ -91,19 +91,25 @@ mean_to_wide <- function(df) {
 #' @param G Number of genes
 #' @param prop_interaction Proportion of genes exhibiting interaction, in [0,1]
 #' @param replication The particular replication for saving files
-simulate_counts <- function(N, G, prop_interaction, replication) {
+simulate_counts <- function(N, G, prop_interaction, replication, noise) {
   
   # The signature string for this run, to be used in output files
   # So we can always parse what comes back
-  sig_str <- paste0("N_", N, "_G_", G, "_p_", prop_interaction, "_rep_", replication)
+  sig_str <- paste0("N_", N, "_G_", G, "_p_", prop_interaction, 
+                    "_rep_", replication, "_noise_", noise)
   
   df <- simulate_mean_function(N, G, prop_interaction)
   sim <- mean_to_wide(df)
   
+  
   pos_gex <- 2^sim$exprsmat - 1 # Make expression positive
   count_mat <- sapply(seq_len(nrow(pos_gex)), function(i) {
     x <- pos_gex[i,]
-    NB(x, x / 3 + 1)
+    if(noise == "low") {
+      return(NB(x, x / 3 + 1))
+    } else {
+      return(NB(x, 1))
+    }
   })
   
   count_mat <- t(count_mat) - 1
@@ -153,12 +159,13 @@ Gs <- 500
 
 prop_interactions <- c(0.05, 0.1, 0.2, 0.3, 0.4, 0.5)
 reps <- 40
+noise <- c("low", "high")
 
 for(N in Ns) {
   for(G in Gs) {
     for(pi in prop_interactions) {
       for(r in seq_len(reps)) {
-        simulate_counts(N, G, pi, r)
+        simulate_counts(N, G, pi, r, noise)
       }
     }
   }

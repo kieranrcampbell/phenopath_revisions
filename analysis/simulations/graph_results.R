@@ -79,10 +79,10 @@ aucs_mast <- mutate(aucs_mast, DE_alg = "mast")
 aucs_monocle <- read_csv("data/simulations/roc_monocle.csv")
 aucs_monocle <- mutate(aucs_monocle, DE_alg = "monocle")
 
-aucs_randmonocle <- read_csv("data/simulations/roc_randmonocle.csv")
-aucs_randmonocle <- mutate(aucs_randmonocle, DE_alg = "randmonocle")
+#aucs_randmonocle <- read_csv("data/simulations/roc_randmonocle.csv")
+#aucs_randmonocle <- mutate(aucs_randmonocle, DE_alg = "randmonocle")
 
-aucs <- bind_rows(aucs, aucs_phenopath, aucs_deseq, aucs_mast, aucs_monocle, aucs_randmonocle)
+aucs <- bind_rows(aucs, aucs_phenopath, aucs_deseq, aucs_mast, aucs_monocle)#, aucs_randmonocle)
 
 aucs <- dplyr::filter(aucs, auc != -1) # This is when the fit didn't work
 

@@ -5,38 +5,9 @@ library(aargh)
 library(dplyr)
 library(stringr)
 
-
+source("analysis/simulations/parse_funcs.R")
 
 sim_dir <- file.path("data", "simulations")
-
-parse_split <- function(s, path) {
-  N <- G <- p <- rep <- alg <- NULL
-  for(i in seq_along(s)) {
-    if(s[i] == "N") N <- as.numeric(s[i+1])
-    if(s[i] == "G") G <- as.numeric(s[i+1])
-    if(s[i] == "p") p <- as.numeric(s[i+1])
-    if(s[i] == "rep") rep <- as.numeric(s[i+1])
-    if(s[i] == "alg") {
-      ss <- s[i+1]
-      alg <- str_split(ss, fixed("."))[[1]][1]
-    }
-  }
-  data.frame(N, G, p, rep, alg, path)
-}
-
-parse_sceset_path <- function(df_small) {
-  sceset_path <- file.path(sim_dir, "scesets",
-                           paste0("sceset_N_",
-                                  df_small$N,
-                                  "_G_",
-                                  df_small$G,
-                                  "_p_",
-                                  df_small$p,
-                                  "_rep_",
-                                  df_small$rep,
-                                  ".rds"))
-  return(sceset_path)
-}
 
 calculate_rocs <- function(df_small) {
   qvals <- read_csv(df_small$path)$qval

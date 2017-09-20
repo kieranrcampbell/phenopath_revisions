@@ -5,18 +5,22 @@ Gs = [500]
 prop_interactions = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5]
 reps = 40
 algorithms_no_pp = ["dpt", "monocle2", "tscan"]
+noises = ["low", "high"]
 
-sig_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}",
-                N = Ns, G = Gs, p = prop_interactions, rep = list(range(1, reps + 1)))
+sig_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}_{noise}",
+                N = Ns, G = Gs, p = prop_interactions, rep = list(range(1, reps + 1)),
+                noise = noises)
 
-pseudotime_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}",
+pseudotime_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}_{noise}_alg_{alg}",
                 N = Ns, G = Gs, p = prop_interactions, 
                 rep = list(range(1, reps + 1)),
+                noise = noises,
                 alg = algorithms_no_pp)
 
-phenopath_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}_alg_phenopath",
+phenopath_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_phenopath",
                 N = Ns, G = Gs, p = prop_interactions, 
-                rep = list(range(1, reps + 1)))
+                rep = list(range(1, reps + 1)),
+                noise = noises)
 
 
 
@@ -66,18 +70,18 @@ rule make_scesets:
 
 rule fit_pseudotimes_no_pp:
     input:
-        "data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}.rds"
+        "data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}.rds"
     output:
-        "data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv"
+        "data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}.csv"
     shell:
         "Rscript analysis/simulations/pseudotime_inference.R --algorithm {wildcards.alg} --input_file {input} --output_file {output}"
 
 rule fit_pseudotimes_phenopath:
     input:
-        "data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}.rds"
+        "data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}_{noise}.rds"
     output:
-        pseudotime="data/simulations/pseudotimes/phenopathfit_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_phenopath.csv",
-        fdata="data/simulations/phenopath_fdata/fdata_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_phenopath.csv"
+        pseudotime="data/simulations/pseudotimes/phenopathfit_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_phenopath.csv",
+        fdata="data/simulations/phenopath_fdata/fdata_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_phenopath.csv"
     shell:
         "Rscript analysis/simulations/pseudotime_inference.R --algorithm phenopath --input_file {input} --output_file {output.pseudotime} --phenopath_fdata_file {output.fdata}"
 
@@ -93,37 +97,37 @@ rule parse_pseudotime_results:
 
 rule differential_expression:
     input:
-        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv",
-        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}.rds"
+        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}.csv",
+        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}.rds"
     output:
-        "data/simulations/qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv"
+        "data/simulations/qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}.csv"
     shell:
         "Rscript analysis/simulations/differential_expression.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output}"
 
 rule differential_expression_deseq:
     input:
-        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv",
-        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}.rds"
+        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}.csv",
+        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}.rds"
     output:
-        "data/simulations/deseq2_qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv"
+        "data/simulations/deseq2_qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}.csv"
     shell:
         "Rscript analysis/simulations/differential_expression_deseq2.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output}"
 
 rule differential_expression_mast:
     input:
-        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv",
-        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}.rds"
+        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}.csv",
+        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}.rds"
     output:
-        "data/simulations/mast_qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv"
+        "data/simulations/mast_qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}.csv"
     shell:
         "Rscript analysis/simulations/differential_expression_mast.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output}"
 
 rule differential_expression_monocle:
     input:
-        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv",
-        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}.rds"
+        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}.csv",
+        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}.rds"
     output:
-        "data/simulations/monocle_qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv"
+        "data/simulations/monocle_qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}.csv"
     shell:
         "Rscript analysis/simulations/differential_expression_monocle.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output}"
 
