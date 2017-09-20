@@ -7,11 +7,11 @@ reps = 40
 algorithms_no_pp = ["dpt", "monocle2", "tscan"]
 noises = ["low", "high"]
 
-sig_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}_{noise}",
+sig_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}",
                 N = Ns, G = Gs, p = prop_interactions, rep = list(range(1, reps + 1)),
                 noise = noises)
 
-pseudotime_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}_{noise}_alg_{alg}",
+pseudotime_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}",
                 N = Ns, G = Gs, p = prop_interactions, 
                 rep = list(range(1, reps + 1)),
                 noise = noises,
