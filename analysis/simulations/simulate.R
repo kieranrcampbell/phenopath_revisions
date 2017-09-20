@@ -159,13 +159,15 @@ Gs <- 500
 
 prop_interactions <- c(0.05, 0.1, 0.2, 0.3, 0.4, 0.5)
 reps <- 40
-noise <- c("low", "high")
+noises <- c("low", "high")
 
 for(N in Ns) {
   for(G in Gs) {
     for(pi in prop_interactions) {
       for(r in seq_len(reps)) {
-        simulate_counts(N, G, pi, r, noise)
+        for(noise in noises) {
+          simulate_counts(N, G, pi, r, noise)
+        }
       }
     }
   }
