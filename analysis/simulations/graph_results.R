@@ -140,7 +140,7 @@ mast_plot <- ggplot(filter(dfg, DE_alg %in% c("mast", "phenopath")), aes(x = as.
   facet_wrap(~ N_str) +
   ylim(lower, upper)
 
-monocle_plot <- ggplot(filter(dfg, DE_alg %in% c("monocle", "phenopath")), aes(x = as.factor(100 * p), y = mean_auc,
+monocle_plot <- ggplot(dplyr::filter(dfg, DE_alg %in% c("monocle", "phenopath")), aes(x = as.factor(100 * p), y = mean_auc,
                                                                          color = alg, group = alg)) + 
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1) +
   geom_line(size = 1.5) + 

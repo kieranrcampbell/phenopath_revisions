@@ -22,13 +22,13 @@ dex_analysis_monocle <- function(input_sceset = "sce.rds",
   sce <- sce[, cells_non_na]
   
   cds <- newCellDataSet(counts(sce), new("AnnotatedDataFrame", pData(sce)))
-  
+  cds$covariate <- cds$x
   cds <- estimateSizeFactors(cds)
   cds <- estimateDispersions(cds)
   
   de <- differentialGeneTest(cds, 
-                             fullModelFormulaStr = "~ x + sm.ns(pseudotime, df = 3) + sm.ns(pseudotime, df = 3):x",
-                             reducedModelFormulaStr = "~ x + sm.ns(pseudotime, df = 3)")
+                             fullModelFormulaStr = "~ covariate*sm.ns(pseudotime, df = 3)",
+                             reducedModelFormulaStr = "~ covariate + sm.ns(pseudotime, df = 3)")
   
 
   interaction_qval <- de$qval
