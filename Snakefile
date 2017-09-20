@@ -30,7 +30,6 @@ dex_qvals = [sim_data_dir + "qvals/qvals_" + s + ".csv" for s in pseudotime_str]
 dex_qvals_deseq2 = [sim_data_dir + "deseq2_qvals/qvals_" + s + ".csv" for s in pseudotime_str]
 dex_qvals_mast = [sim_data_dir + "mast_qvals/qvals_" + s + ".csv" for s in pseudotime_str]
 dex_qvals_monocle = [sim_data_dir + "monocle_qvals/qvals_" + s + ".csv" for s in pseudotime_str]
-dex_qvals_randmonocle = [sim_data_dir + "randmonocle_qvals/qvals_" + s + ".csv" for s in pseudotime_str]
 
 phenopath_fdata = [sim_data_dir + "phenopath_fdata/fdata_" + s + ".csv" for s in phenopath_str]
 
@@ -52,7 +51,6 @@ rule all:
         "data/simulations/roc_phenopath.csv",
         "data/simulations/roc_mast.csv",
         "data/simulations/roc_monocle.csv",
-        # "data/simulations/roc_randmonocle.csv",
         linear_psts,
         linear_coefs
 
@@ -129,14 +127,6 @@ rule differential_expression_monocle:
     shell:
         "Rscript analysis/simulations/differential_expression_monocle.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output}"
 
-rule differential_expression_randmonocle:
-    input:
-        pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv",
-        sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}.rds"
-    output:
-        "data/simulations/randmonocle_qvals/qvals_N_{N}_G_{G}_p_{p}_rep_{rep}_alg_{alg}.csv"
-    shell:
-        "Rscript analysis/simulations/differential_expression_monocle.R --input_sceset {input.sceset} --pseudotime_file {input.pseudotime} --output_file {output} --random 1"
 
 
 rule roc:
@@ -175,14 +165,6 @@ rule roc_monocle:
     shell:
         "Rscript analysis/simulations/calculate_auc.R --qval_dir monocle_qvals --output_file {output}"
 
-rule roc_randmonocle:
-    input:
-        scesets,
-        dex_qvals_randmonocle
-    output:
-        "data/simulations/roc_randmonocle.csv"
-    shell:
-        "Rscript analysis/simulations/calculate_auc.R --qval_dir randmonocle_qvals --output_file {output}"
 
 rule roc_phenopath:
     input:

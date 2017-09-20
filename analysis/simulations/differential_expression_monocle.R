@@ -14,8 +14,6 @@ dex_analysis_monocle <- function(input_sceset = "sce.rds",
   pseudotime_df <- read_csv(pseudotime_file)
   pseudotime <- scale(pseudotime_df$pst)[,1]
   
-  if(random == 1) pseudotime <- rnorm(ncol(sce))
-  
   cells_non_na <- which(!is.na(pseudotime))
   
   sce$pseudotime <- pseudotime
