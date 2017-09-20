@@ -27,8 +27,8 @@ dex_analysis_monocle <- function(input_sceset = "sce.rds",
   cds <- estimateDispersions(cds)
   
   de <- differentialGeneTest(cds, 
-                             fullModelFormulaStr = "~ x + sm.ns(pseudotime) + sm.ns(pseudotime):x",
-                             reducedModelFormulaStr = "~ x + sm.ns(pseudotime)")
+                             fullModelFormulaStr = "~ x + sm.ns(pseudotime, df = 3) + sm.ns(pseudotime, df = 3):x",
+                             reducedModelFormulaStr = "~ x + sm.ns(pseudotime, df = 3)")
   
 
   interaction_qval <- de$qval

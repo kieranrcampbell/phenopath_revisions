@@ -52,7 +52,7 @@ rule all:
         "data/simulations/roc_phenopath.csv",
         "data/simulations/roc_mast.csv",
         "data/simulations/roc_monocle.csv",
-        "data/simulations/roc_randmonocle.csv",
+        # "data/simulations/roc_randmonocle.csv",
         linear_psts,
         linear_coefs
 

@@ -79,7 +79,10 @@ aucs_mast <- mutate(aucs_mast, DE_alg = "mast")
 aucs_monocle <- read_csv("data/simulations/roc_monocle.csv")
 aucs_monocle <- mutate(aucs_monocle, DE_alg = "monocle")
 
-aucs <- bind_rows(aucs, aucs_phenopath, aucs_deseq, aucs_mast, aucs_monocle)
+aucs_randmonocle <- read_csv("data/simulations/roc_randmonocle.csv")
+aucs_randmonocle <- mutate(aucs_randmonocle, DE_alg = "randmonocle")
+
+aucs <- bind_rows(aucs, aucs_phenopath, aucs_deseq, aucs_mast, aucs_monocle, aucs_randmonocle)
 
 aucs <- dplyr::filter(aucs, auc != -1) # This is when the fit didn't work
 
@@ -153,6 +156,19 @@ monocle_plot <- ggplot(filter(dfg, DE_alg %in% c("monocle", "phenopath")), aes(x
 plot_grid(voom_plot, deseq_plot, mast_plot, monocle_plot, ncol = 1)
 
 ggsave("figs/auc.png", width = 8, height = 11)
+
+ggplot(filter(dfg, DE_alg %in% c("randmonocle", "phenopath")), aes(x = as.factor(100 * p), y = mean_auc,
+                                                                               color = alg, group = alg)) + 
+  geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1) +
+  geom_line(size = 1.5) + 
+  geom_point(aes(fill = alg), shape = 21, color = 'black', size = 2) +
+  scale_colour_brewer(palette = "Set2", name = "Algorithm") +
+  scale_fill_brewer(palette = "Set2", name = "Algorithm") +
+  labs(y = "Median AUC",
+       x = "% genes covariate interaction",
+       subtitle = "DE with Monocle 2") +
+  facet_wrap(~ N_str) +
+  ylim(lower, upper)
 
 voom_paper_plot <- ggplot(filter(dfg, DE_alg != "deseq2", N == 200), aes(x = as.factor(100 * p), y = mean_auc,
                                             color = alg, group = alg)) + 
