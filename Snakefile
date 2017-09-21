@@ -44,20 +44,38 @@ lin_scesets = expand("data/scesets/{dataset}-sce.rds", dataset = datasets)
 linear_psts = expand("data/linpst/{dataset}_pseudotimes.csv", dataset = datasets)
 linear_coefs = expand("data/lincoef/{dataset}.csv", dataset = datasets)
 
+hvg_datasets = ["coad", "brca", "shalek"]
+hvgs = [100, 200, 500, 1000, 2000, 4000]
+hvg_algorithms = ["phenopath", "monocle"]
+
+paper_scesets = expand("data/paper-scesets/sce_{hvg_dset}_clvm.rds", hvg_dset = hvg_datasets)
+hvg_pseudotimes = expand("data/hvg/pseudotime_{hvg_dset}_{hvg}_{hvg_algorithm}.csv",
+                        hvg_dset = hvg_datasets, hvg = hvgs, hvg_algorithm = hvg_algorithms)
+
 
 rule all:
     input:
-        phenopath_fdata,
-        "data/simulations/all_pseudotime_correlations.csv",
-        dex_qvals,
-        "data/simulations/roc.csv",
-        "data/simulations/roc_deseq.csv",
-        "data/simulations/roc_phenopath.csv",
-        "data/simulations/roc_mast.csv",
-        "data/simulations/roc_monocle.csv",
-        linear_psts,
-        linear_coefs
+        # phenopath_fdata,
+        # "data/simulations/all_pseudotime_correlations.csv",
+        # dex_qvals,
+        # "data/simulations/roc.csv",
+        # "data/simulations/roc_deseq.csv",
+        # "data/simulations/roc_phenopath.csv",
+        # "data/simulations/roc_mast.csv",
+        # "data/simulations/roc_monocle.csv",
+        # linear_psts,
+        # linear_coefs
+        hvg_pseudotimes
 
+# HVG stuff ------------------
+
+rule fit_hvg_pseudotimes:
+    input:
+        "data/paper-scesets/sce_{hvg_dset}_clvm.rds"
+    output:
+        "data/hvg/pseudotime_{hvg_dset}_{hvg}_{hvg_algorithm}.csv"
+    shell:
+        "Rscript analysis/hvg/fit_hvg_pseudotime.R --input_sceset {input} --algorithm {wildcards.hvg_algorithm} --hvg {wildcards.hvg} --dataset {wildcards.hvg_dset} --output_csv {output}"
 
 # Simulations ----------------
 
