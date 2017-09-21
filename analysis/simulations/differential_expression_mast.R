@@ -12,7 +12,10 @@ dex_analysis_mast <- function(input_sceset = "sce.rds",
   
   sce <- readRDS(input_sceset)
   pseudotime_df <- read_csv(pseudotime_file)
-  pseudotime <- scale(pseudotime_df$pst)[,1]
+  
+  # pseudotime <- scale(pseudotime_df$pst)[,1]
+  pst <- pseudotime_df$pst
+  pseudotime <- (pst - min(pst)) / (max(pst) - min(pst)) # Scale to [0,1)
   
   cells_non_na <- which(!is.na(pseudotime))
   

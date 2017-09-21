@@ -61,11 +61,13 @@ rule all:
         # "data/simulations/roc.csv",
         # "data/simulations/roc_deseq.csv",
         # "data/simulations/roc_phenopath.csv",
-        # "data/simulations/roc_mast.csv",
+        "data/simulations/roc_mast.csv",
         # "data/simulations/roc_monocle.csv",
         # linear_psts,
-        # linear_coefs
-        hvg_pseudotimes
+        # linear_coefs,
+        # "figs/mast.png"
+        # hvg_pseudotimes,
+        # "figs/hvg.png"
 
 # HVG stuff ------------------
 
@@ -76,6 +78,14 @@ rule fit_hvg_pseudotimes:
         "data/hvg/pseudotime_{hvg_dset}_{hvg}_{hvg_algorithm}.csv"
     shell:
         "Rscript analysis/hvg/fit_hvg_pseudotime.R --input_sceset {input} --algorithm {wildcards.hvg_algorithm} --hvg {wildcards.hvg} --dataset {wildcards.hvg_dset} --output_csv {output}"
+
+rule hvg_figure:
+    input:
+        hvg_pseudotimes
+    output:
+        "figs/hvg.png"
+    shell:
+        "Rscript analysis/hvg/collate_pseudotimes.R"
 
 # Simulations ----------------
 
@@ -202,6 +212,14 @@ rule sim_example_figure:
         "figs/simulation_example.rds"
     shell:
         "Rscript analysis/simulations/graph_sims.R"
+
+rule demonstrate_mast:
+    input:
+        "data/simulations/scesets/sceset_N_200_G_500_p_0.5_rep_8.rds"
+    output:
+        "figs/mast.png"
+    shell:
+        "Rscript analysis/simulations/demonstrate_mast.R"
 
 # Testing for linearity of pseudotime
 
