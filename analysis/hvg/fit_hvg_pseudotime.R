@@ -33,7 +33,7 @@ fit_hvg_pseudotime <- function(input_sceset = "input.rds",
   sce_hvg <- sce[is_hvg, ]
   
   pseudotime <- switch(algorithm,
-                       phenopath = fit_phenopath(exprs(sce_hvg), sce_hvg$x),
+                       phenopath = trajectory(fit_phenopath(exprs(sce_hvg), sce_hvg$x)),
                        monocle = fit_monocle2(exprs(sce_hvg)))
   
   output_dataframe <- data_frame(pseudotime = pseudotime,
