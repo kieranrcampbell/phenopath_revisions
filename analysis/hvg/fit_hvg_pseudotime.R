@@ -1,6 +1,6 @@
 library(scater)
 library(phenopath)
-library(monocle2)
+library(monocle)
 library(readr)
 library(dplyr)
 library(aargh)
