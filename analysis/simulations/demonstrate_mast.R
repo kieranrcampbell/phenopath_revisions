@@ -23,14 +23,6 @@ make_pst_plot <- function(pseudotime, labels = c("A", "B", "C")) {
   pdata <- data.frame(x = sce$x, pseudotime)
   rownames(pdata) <- colnames(sce)
   
-  ## Remove ----
-  sce$pseudotime <- pseudotime
-  lm_pvals <- apply(exprs(sce), 1, function(y) {
-    fit <- lm(y ~ sce$pseudotime * sce$x)
-    coef(summary(fit))[4,'Pr(>|t|)']
-  })
-  
-  ## End remove ---
   
   sca <- FromMatrix(exprs(sce), pdata)
   fit <- zlm(~ x + pseudotime + x:pseudotime, sca)
@@ -57,6 +49,11 @@ make_pst_plot <- function(pseudotime, labels = c("A", "B", "C")) {
   
   plot_grid(pst_plot, pval_plot, auc_plot, nrow = 1, labels = labels)
 }
+
+z <- rnorm(N)
+make_pst_plot(z)
+make_pst_plot(z - min(z))
+make_pst_plot(z - min(z) / (max(z) - min(z)))
 
 top_grid <- make_pst_plot(rnorm(N))
 bottom_grid <- make_pst_plot(rnorm(N, sce$x, 0.5), labels = c("D", "E", "F"))

@@ -114,6 +114,9 @@ graph_auc <- function(dfg, de_alg, de_str, noi) {
       ylim(lower, upper)
 }
 
+noise <- "low"
+graph_auc(dfg, "mast", "MAST", noise)
+
 auc_plots <- lapply(c("low", "high"), function(noise) {
   voom_plot <- graph_auc(dfg, "limma", "Limma Voom", noise)
   deseq_plot <- graph_auc(dfg, "deseq2", "DESeq2", noise)
