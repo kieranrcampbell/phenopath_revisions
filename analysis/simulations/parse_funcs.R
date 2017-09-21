@@ -7,12 +7,12 @@ parse_split <- function(s, path) {
     if(s[i] == "G") G <- as.numeric(s[i+1])
     if(s[i] == "p") p <- as.numeric(s[i+1])
     if(s[i] == "rep") rep <- as.numeric(s[i+1])
+    if(s[i] == "noise") {
+      noise <- s[i+1]
+    }
     if(s[i] == "alg") {
       ss <- s[i+1]
       alg <- str_split(ss, fixed("."))[[1]][1]
-    }
-    if(s[i] == "noise") {
-      noise <- s[i+1]
     }
   }
   data.frame(N, G, p, rep, alg, path, noise)
@@ -28,7 +28,7 @@ parse_sceset_path <- function(df_small) {
                                   df_small$p,
                                   "_rep_",
                                   df_small$rep,
-                                  "_noise",
+                                  "_noise_",
                                   df_small$noise,
                                   ".rds"))
   return(sceset_path)
