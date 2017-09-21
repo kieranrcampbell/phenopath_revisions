@@ -36,7 +36,10 @@ fit_hvg_pseudotime <- function(input_sceset = "input.rds",
                        phenopath = trajectory(fit_phenopath(exprs(sce_hvg), sce_hvg$x)),
                        monocle = fit_monocle2(exprs(sce_hvg)))
   
-  output_dataframe <- data_frame(pseudotime = pseudotime,
+  sample_name = paste0("sample_", seq_len(ncol(sce_hvg)))
+  
+  output_dataframe <- data_frame(sample = sample_name, 
+                                 pseudotime = pseudotime,
                                  algorithm = algorithm,
                                  hvg = hvg,
                                  dataset = dataset)
