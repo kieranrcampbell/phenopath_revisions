@@ -44,7 +44,7 @@ fit_shalek_interactions <- function(input_sceset = "input.rds",
                        phenopath_init_monocle = fit_phenopath_interactions(exprs(sce_hvg), sce_hvg$x, fit_monocle2(exprs(sce_hvg)))
                       )
   
-  gene_name = paste0("gene_", seq_len(ncol(sce_hvg)))
+  gene_name = paste0("gene_", seq_len(nrow(sce_hvg)))
   
   output_dataframe <- data_frame(gene = gene_name, 
                                  interactions = interactions,
