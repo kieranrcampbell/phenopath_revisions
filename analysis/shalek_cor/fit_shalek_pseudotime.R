@@ -8,7 +8,7 @@ library(matrixStats)
 library(TSCAN)
 library(dpt)
 
-fit_phenopath <- function(exprs_mat, x, pst_init) {
+fit_phenopath <- function(exprs_mat, x, pst_init = 1) {
   fit <- phenopath(t(exprs_mat), x, z_init = pst_init)
   return(fit)
 }
