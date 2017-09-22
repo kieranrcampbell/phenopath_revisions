@@ -102,7 +102,7 @@ rule fit_shalek_interactions:
     output:
         "data/shalek_cor/interaction_hvg_{hvg_shalek}_alg_{hvg_shalek_algorithm}.csv"
     shell:
-        "Rscript analysis/shalek_cor/fit_shalek_interactions.R --input_sceset {input} --algorithm {wildcards.hvg_shalek_algorithm} --hvg {wildcards.hvg_shalek} --output_csv {output}"
+        "Rscript analysis/shalek_cor/fit_phenopath_interactions.R --input_sceset {input} --algorithm {wildcards.hvg_shalek_algorithm} --hvg {wildcards.hvg_shalek} --output_csv {output}"
 
 
 # HVG stuff ------------------
