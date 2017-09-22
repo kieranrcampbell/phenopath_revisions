@@ -29,7 +29,7 @@ df_maxmin <- group_by(df, algorithm, hvg) %>%
 df <- inner_join(df, df_maxmin, by = c("algorithm", "hvg"))
 df_norm <- mutate(df, pseudotime_norm = (pseudotime - min_pst) / (max_pst - min_pst))
 
-ggplot(df_norm, aes(x = algorithm, y = pseudotime_norm, fill = time)) +
+plt1 <- ggplot(df_norm, aes(x = algorithm, y = pseudotime_norm, fill = time)) +
   geom_boxplot() +
   facet_wrap(~ hvg)
 
@@ -42,8 +42,15 @@ get_R2 <- function(pseudotime, time) {
   s$r.squared
 }
 
-group_by(df_norm, algorithm, hvg) %>% 
+df_R2 <- group_by(df_norm, algorithm, hvg) %>% 
   summarise(R2_to_time = get_R2(pseudotime, time))
+
+df_R2$hvg <- factor(df_R2$hvg, levels = c("500", "1000", "2000", "4000", "all"))
+
+ggplot(df_R2, aes(x = hvg, y = R2_to_time, group = algorithm, color = algorithm)) +
+  geom_point() + geom_line() +
+  labs(y = "R2 to true time", x = "Number of highly variable genes")
+
 
 
 

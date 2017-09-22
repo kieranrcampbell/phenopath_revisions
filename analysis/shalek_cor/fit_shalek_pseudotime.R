@@ -8,8 +8,8 @@ library(matrixStats)
 library(TSCAN)
 library(dpt)
 
-fit_phenopath <- function(exprs_mat, x) {
-  fit <- phenopath(t(exprs_mat), x)
+fit_phenopath <- function(exprs_mat, x, pst_init) {
+  fit <- phenopath(t(exprs_mat), x, z_init = pst_init)
   return(fit)
 }
 
@@ -51,11 +51,11 @@ fit_shalek_pseudotime <- function(input_sceset = "input.rds",
     is_hvg <- gene_vars >= hvg_threshold
   }
 
-  
+  pst_init <- scale(as.numeric(gsub("h", "", sce$time)))[,1]  
   sce_hvg <- sce[is_hvg, ]
   
   pseudotime <- switch(algorithm,
-                       phenopath = trajectory(fit_phenopath(exprs(sce_hvg), sce_hvg$x)),
+                       phenopath = trajectory(fit_phenopath(exprs(sce_hvg), sce_hvg$x, pst_init)),
                        monocle2 = fit_monocle2(exprs(sce_hvg)),
                        dpt = fit_dpt(exprs(sce_hvg)),
                        tscan = fit_tscan(exprs(sce_hvg)))
