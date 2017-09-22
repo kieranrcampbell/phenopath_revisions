@@ -39,9 +39,9 @@ fit_shalek_interactions <- function(input_sceset = "input.rds",
   sce_hvg <- sce[is_hvg, ]
   
   interactions <- switch(algorithm,
-                       phenopath_init_time = fit_phenopath(exprs(sce_hvg), sce_hvg$x, pst_init),
-                       phenopath_init_pc1 = fit_phenopath(exprs(sce_hvg), sce_hvg$x),
-                       phenopath_init_monocle = fit_phenopath(exprs(sce_hvg), sce_hvg$x, fit_monocle2(exprs(sce_hvg)))
+                       phenopath_init_time = fit_phenopath_interactions(exprs(sce_hvg), sce_hvg$x, pst_init),
+                       phenopath_init_pc1 = fit_phenopath_interactions(exprs(sce_hvg), sce_hvg$x),
+                       phenopath_init_monocle = fit_phenopath_interactions(exprs(sce_hvg), sce_hvg$x, fit_monocle2(exprs(sce_hvg)))
                       )
   
   gene_name = paste0("gene_", seq_len(ncol(sce_hvg)))
