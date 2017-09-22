@@ -55,7 +55,7 @@ hvg_pseudotimes = expand("data/hvg/pseudotime_{hvg_dset}_{hvg}_{hvg_algorithm}.c
 hvgs_shalek = ["500", "1000", "2000", "4000", "6000", "all"]
 shalek_algs = ["dpt", "monocle2", "tscan", "phenopath_init_time", "phenopath_init_pc1"]
 
-shalek_pseudotimes = expand("data/shalek_cor/pseudotime_{hvg_shalek}_{hvg_shalek_algorithm}.csv",
+shalek_pseudotimes = expand("data/shalek_cor/pseudotime_hvg_{hvg_shalek}_alg_{hvg_shalek_algorithm}.csv",
                             hvg_shalek = hvgs_shalek, 
                             hvg_shalek_algorithm = shalek_algs)
 
@@ -84,7 +84,7 @@ rule fit_shalek_pseudotimes:
     input:
         "data/paper-scesets/sce_shalek_clvm.rds"
     output:
-        "data/shalek_cor/pseudotime_{hvg_shalek}_{hvg_shalek_algorithm}.csv"
+        "data/shalek_cor/pseudotime_hvg_{hvg_shalek}_alg_{hvg_shalek_algorithm}.csv"
     shell:
         "Rscript analysis/shalek_cor/fit_shalek_pseudotime.R --input_sceset {input} --algorithm {wildcards.hvg_shalek_algorithm} --hvg {wildcards.hvg_shalek} --output_csv {output}"
 
