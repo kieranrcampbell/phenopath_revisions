@@ -52,7 +52,7 @@ paper_scesets = expand("data/paper-scesets/sce_{hvg_dset}_clvm.rds", hvg_dset = 
 hvg_pseudotimes = expand("data/hvg/pseudotime_{hvg_dset}_{hvg}_{hvg_algorithm}.csv",
                         hvg_dset = hvg_datasets, hvg = hvgs, hvg_algorithm = hvg_algorithms)
 
-hvgs_shalek = ["500", "1000", "2000", "4000", "all"]
+hvgs_shalek = ["500", "1000", "2000", "4000", "6000", "all"]
 shalek_algs = ["dpt", "monocle2", "tscan", "phenopath"]
 
 shalek_pseudotimes = expand("data/shalek_cor/pseudotime_{hvg_shalek}_{hvg_shalek_algorithm}.csv",

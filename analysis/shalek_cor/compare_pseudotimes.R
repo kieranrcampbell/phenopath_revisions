@@ -45,7 +45,8 @@ get_R2 <- function(pseudotime, time) {
 df_R2 <- group_by(df_norm, algorithm, hvg) %>% 
   summarise(R2_to_time = get_R2(pseudotime, time))
 
-df_R2$hvg <- factor(df_R2$hvg, levels = c("500", "1000", "2000", "4000", "all"))
+df_R2$hvg <- plyr::mapvalues(df_R2$hvg, from = "all", to = as.character(nrow(sce)))
+df_R2$hvg <- factor(as.numeric(df_R2$hvg))
 
 ggplot(df_R2, aes(x = hvg, y = R2_to_time, group = algorithm, color = algorithm)) +
   geom_point() + geom_line() +
