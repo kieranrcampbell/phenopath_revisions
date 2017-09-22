@@ -5,44 +5,48 @@ library(cowplot)
 
 theme_set(theme_cowplot(font_size = 11))
 
-hvg_dir <- "data/hvg"
+hvg_dir <- "data/shalek_cor"
+
+sce <- readRDS("data/paper-scesets/sce_shalek_clvm.rds")
+
+time_df <- select(pData(sce), time) %>% 
+  as_data_frame() %>% 
+  mutate(sample = paste0("sample_", seq_len(ncol(sce))))
 
 all_files <- dir(hvg_dir, full.names = TRUE)
 
+
 df_list <- lapply(all_files, read_csv)
+df_list <- lapply(df_list, function(d) { d$hvg <- as.character(d$hvg); d} )
 
 df <- bind_rows(df_list)
 
-df_ref <- filter(df, hvg == 4000) %>% select(-hvg)
-df_comp <- filter(df, hvg != 4000)
+df <- inner_join(df, time_df, by = "sample")
 
-df_all <- inner_join(df_ref, df_comp,
-                     by = c("sample", "algorithm", "dataset"),
-                    suffix = c("_all", "_4000"))
+df_maxmin <- group_by(df, algorithm, hvg) %>% 
+  summarise(max_pst = max(pseudotime, na.rm = TRUE), min_pst = min(pseudotime, na.rm = TRUE))
 
-df_cor <- group_by(df_all, algorithm, dataset, hvg) %>% 
-  summarise(cor_to_4000 = cor(pseudotime_all, pseudotime_4000))
+df <- inner_join(df, df_maxmin, by = c("algorithm", "hvg"))
+df_norm <- mutate(df, pseudotime_norm = (pseudotime - min_pst) / (max_pst - min_pst))
 
-alg_from <- c("monocle", "phenopath")
-alg_to <- c("Monocle 2", "PhenoPath")
-dataset_from <- c("coad", "brca", "shalek")
-dataset_to <- c("COAD", "BRCA", "Shalek et al.")
+ggplot(df_norm, aes(x = algorithm, y = pseudotime_norm, fill = time)) +
+  geom_boxplot() +
+  facet_wrap(~ hvg)
 
-df_cor$algorithm <- plyr::mapvalues(df_cor$algorithm, from = alg_from, to = alg_to)
-df_cor$dataset <- plyr::mapvalues(df_cor$dataset, from = dataset_from, to = dataset_to)
 
-df_cor$hvg <- factor(df_cor$hvg)
+# R2s ---------------------------------------------------------------------
 
-ggplot(df_cor, aes(x = hvg, y = abs(cor_to_4000), color = algorithm, group = algorithm)) + 
-  geom_point() + facet_wrap(~ dataset) +
-  geom_line() +
-  labs(subtitle = "Correlation to 4000 highly-variable-gene (HVG) pseudotime",
-       x = "Number of HVGs", y = "Correlation") +
-  scale_color_brewer(palette = "Set1",
-                     name = "Algorithm") +
-  theme(strip.background = element_rect(colour = "black", fill = "grey95", 
-                                        linetype = "solid", size = 1),
-        legend.position = "right",
-        axis.text.x = element_text(size = 8))
+get_R2 <- function(pseudotime, time) {
+  fit <- lm(pseudotime ~ sce$time)
+  s <- summary(fit)
+  s$r.squared
+}
 
-ggsave("figs/hvg.png", width = 6, height = 2.5)
+group_by(df_norm, algorithm, hvg) %>% 
+  summarise(R2_to_time = get_R2(pseudotime, time))
+
+
+
+
+
+
