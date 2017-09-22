@@ -55,10 +55,16 @@ hvg_pseudotimes = expand("data/hvg/pseudotime_{hvg_dset}_{hvg}_{hvg_algorithm}.c
 hvgs_shalek = ["500", "1000", "2000", "4000", "6000", "all"]
 shalek_algs = ["dpt", "monocle2", "tscan", "phenopath_init_time", "phenopath_init_pc1",
                 "phenopath_init_monocle"]
+phenopath_shalek_algs = ["phenopath_init_time", "phenopath_init_pc1",
+                "phenopath_init_monocle"]
 
 shalek_pseudotimes = expand("data/shalek_cor/pseudotime_hvg_{hvg_shalek}_alg_{hvg_shalek_algorithm}.csv",
                             hvg_shalek = hvgs_shalek, 
                             hvg_shalek_algorithm = shalek_algs)
+
+shalek_interactions = expand("data/shalek_cor/interaction_hvg_{hvg_shalek}_alg_{hvg_shalek_algorithm}.csv",
+                            hvg_shalek = hvgs_shalek, 
+                            hvg_shalek_algorithm = phenopath_shalek_algs)
 
 
 rule all:
@@ -76,7 +82,8 @@ rule all:
         # "figs/mast.png"
         # hvg_pseudotimes,
         # "figs/hvg.png",
-        shalek_pseudotimes
+        # shalek_pseudotimes
+        shalek_interactions
 
 
 # Shalek correlation stuff -----------
@@ -88,6 +95,14 @@ rule fit_shalek_pseudotimes:
         "data/shalek_cor/pseudotime_hvg_{hvg_shalek}_alg_{hvg_shalek_algorithm}.csv"
     shell:
         "Rscript analysis/shalek_cor/fit_shalek_pseudotime.R --input_sceset {input} --algorithm {wildcards.hvg_shalek_algorithm} --hvg {wildcards.hvg_shalek} --output_csv {output}"
+
+rule fit_shalek_interactions:
+    input:
+        "data/paper-scesets/sce_shalek_clvm.rds"
+    output:
+        "data/shalek_cor/interaction_hvg_{hvg_shalek}_alg_{hvg_shalek_algorithm}.csv"
+    shell:
+        "Rscript analysis/shalek_cor/fit_shalek_interactions.R --input_sceset {input} --algorithm {wildcards.hvg_shalek_algorithm} --hvg {wildcards.hvg_shalek} --output_csv {output}"
 
 
 # HVG stuff ------------------

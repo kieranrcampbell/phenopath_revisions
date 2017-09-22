@@ -17,7 +17,7 @@ all_files <- dir(hvg_dir, full.names = TRUE)
 
 
 df_list <- lapply(all_files, read_csv)
-df_list <- lapply(df_list, function(d) { d$hvg <- as.character(d$hvg); d} )
+df_list <- lapply(df_list, function(d) { d$hvg <- as.character(d$hvg); d$x <- sce$x; d} )
 
 df <- bind_rows(df_list)
 
@@ -37,13 +37,14 @@ plt1 <- ggplot(df_norm, aes(x = algorithm, y = pseudotime_norm, fill = time)) +
 # R2s ---------------------------------------------------------------------
 
 get_R2 <- function(pseudotime, time) {
-  time_numeric <- as.numeric(gsub("h", "", time))
-  fit <- lm(pseudotime ~ time_numeric)
+  # time <- as.numeric(gsub("h", "", time))
+  fit <- lm(pseudotime ~ time)
   s <- summary(fit)
   s$r.squared
+  # abs(cor(time, pseudotime))
 }
 
-df_R2 <- group_by(df_norm, algorithm, hvg) %>% 
+df_R2 <- group_by(df_norm, algorithm, hvg, x) %>% 
   summarise(R2_to_time = get_R2(pseudotime, time))
 
 df_R2$hvg <- plyr::mapvalues(df_R2$hvg, from = "all", to = as.character(nrow(sce)))
@@ -51,7 +52,8 @@ df_R2$hvg <- factor(as.numeric(df_R2$hvg))
 
 ggplot(df_R2, aes(x = hvg, y = R2_to_time, group = algorithm, color = algorithm)) +
   geom_point() + geom_line() +
-  labs(y = "R2 to true time", x = "Number of highly variable genes")
+  labs(y = "R2 to true time", x = "Number of highly variable genes") + 
+  facet_wrap(~ x)
 
 
 
