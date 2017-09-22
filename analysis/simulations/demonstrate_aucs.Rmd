@@ -1,0 +1,334 @@
+---
+title: "Area under curve less than 0.5 with pseudotime interactions"
+author: "Kieran R Campbell"
+date: "September 2017"
+output:
+  html_document: 
+    toc: true
+  html_notebook: default
+  pdf_document: default
+
+---
+
+```{r, warning = FALSE, cache = FALSE, include = FALSE}
+suppressPackageStartupMessages(library(scater))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(monocle))
+suppressPackageStartupMessages(library(MAST))
+suppressPackageStartupMessages(library(AUC))
+suppressPackageStartupMessages(library(cowplot))
+
+theme_set(theme_cowplot(font_size = 11))
+
+
+knitr::opts_chunk$set(fig.width=4, fig.height=4, cache=TRUE, fig.align='center',
+                      fig.show='hold')
+
+set.seed(1234L)
+```
+
+# Introduction
+
+In simulations of covariate-pseudotime interactions various algorithms appear to have AUC < 0.5, in other words they perform _worse than expected at random_. 
+
+Here we look at a particular example with a dataset of simulated counts where the first 250 genes exhibit interactions and the final 250 don't. First let's read the data and get the true simulated time:
+
+```{r}
+sce <- readRDS("../../data/simulations/scesets/sceset_N_200_G_500_p_0.5_rep_8_noise_high.rds")
+true_pseudotime <- sce$pst
+```
+
+We can plot examples of genes with and without interactions. In the plot below the first 4 genes show interactions while the final 4 don't:
+
+```{r, fig.width = 8, fig.height = 4}
+expr_mat <- exprs(sce)[c(1:4, 251:254),]
+
+df_expr <- as_data_frame(t(expr_mat)) %>% 
+  mutate(Pseudotime = pData(sce)$pst, x = factor(pData(sce)$x)) %>% 
+  gather(gene, expression, -Pseudotime, -x) %>% 
+  mutate(Branch = factor(x))
+
+ggplot(df_expr, aes(x = Pseudotime, y = expression, color = x)) +
+  geom_point() +
+  facet_wrap(~ gene, scales = "free_y")
+```
+
+# Functions to plot AUCs
+
+First we define various functions to perform differential expression analysis and plot ROC curves. This section can be skipped.
+
+```{r}
+plot_auc <- function(roc_obj) {
+  a <- auc(roc_obj)
+  
+  auc_text <- frame_data(
+    ~ x, ~ y, ~ auc,
+    0.25, 0.75, paste0("AUC = ", signif(a, 2))
+  )
+  
+  auc_plot <- qplot(roc_obj$fpr, roc_obj$tpr, geom = 'line') +
+    stat_function(fun = function(x) x, linetype = 2) +
+    geom_text(data = auc_text, aes(x = x, y = y, label = auc)) +
+    labs(x = "FPR", y = "TPR")
+  
+  auc_plot
+}
+```
+
+
+```{r}
+mast_auc <- function(pseudotime, labels = c("A", "B", "C")) {
+  sca <- FromMatrix(exprs(sce), pData(sce))
+  sca$pseudotime <- pseudotime
+  
+  fit <- zlm(~ x + pseudotime + x:pseudotime, sca)
+  lrt <- lrTest(fit, "x:pseudotime")
+
+  roc_obj <- roc(1 - lrt[,3,3], factor(fData(sce)$is_interaction))
+  
+  plot_auc(roc_obj)
+}
+
+```
+
+
+```{r, warning = FALSE}
+cds <- newCellDataSet(counts(sce), new("AnnotatedDataFrame", pData(sce)))
+cds$covariate <- cds$x
+
+cds <- estimateSizeFactors(cds)
+cds <- estimateDispersions(cds)
+
+
+monocle_auc <- function(pseudotime) {
+  cds$pseudotime <- pseudotime
+  de <- differentialGeneTest(cds, 
+                            fullModelFormulaStr = "~ covariate*sm.ns(pseudotime, df = 3)",
+                            reducedModelFormulaStr = "~ covariate + sm.ns(pseudotime, df = 3)")
+  
+  roc_obj <- roc(1 - de$qval, factor(fData(sce)$is_interaction))
+  
+  plot_auc(roc_obj)
+}
+```
+
+```{r}
+lm_auc <- function(pseudotime) {
+  sce$pseudotime <- pseudotime
+  
+  lm_pvals <- apply(exprs(sce), 1, function(y) {
+    fit <- lm(y ~ sce$pseudotime * sce$x)
+    coef(summary(fit))[4,'Pr(>|t|)']
+  })
+  roc_obj <- roc(1 - lm_pvals, factor(fData(sce)$is_interaction))
+  
+  plot_auc(roc_obj)
+}
+```
+
+# Results
+
+## Using true pseudotime
+
+First let's look at the ROCs with the true pseudotimes as a positive control, each for MAST, Monocle, and a basic linear model:
+
+```{r, fig.show='hold', message = FALSE, results = 'hide'}
+mast_auc(true_pseudotime)
+monocle_auc(true_pseudotime)
+lm_auc(true_pseudotime)
+```
+
+These all look pretty good.
+
+## Random uniform
+
+Next we simulate the pseudotimes from a random normal and perform the same differential expression analysis:
+
+```{r, fig.show='hold', message = FALSE, results = 'hide'}
+N <- ncol(sce)
+z_uniform <- runif(N)
+
+mast_auc(z_uniform)
+monocle_auc(z_uniform)
+lm_auc(z_uniform)
+```
+
+Again, these all look fine. Monocle looks particularly well calibrated while the linear model appears to be picking up some residual noise, though AUC is of course a random variable which might be different under a different dataset.
+
+## Random normal
+
+Next we set the pseudotimes to a random normal and repeat the analysis:
+
+```{r, fig.show='hold', message = FALSE, results = 'hide'}
+z_norm <- rnorm(N)
+mast_auc(z_norm)
+monocle_auc(z_norm)
+lm_auc(z_norm)
+```
+
+Now MAST and a linear model appear to do significantly _worse_ than we'd expect at random. What's worse is if we rescale the pseudotimes, we get a different AUC (which necessarily means different p-values):
+
+```{r, fig.show='hold', message = FALSE, results = 'hide'}
+mast_auc(z_norm - min(z_norm))
+```
+
+Let's dig in to the linear results a bit more to see if we can get a picture of what's going on. Recalculate the p-values and plot:
+
+```{r}
+sce$pseudotime <- z_norm
+
+lm_pvals <- apply(exprs(sce), 1, function(y) {
+  fit <- lm(y ~ sce$pseudotime * sce$x)
+  coef(summary(fit))[4,'Pr(>|t|)']
+})
+
+qplot(seq_along(lm_pvals), -log10(lm_pvals))
+```
+
+If we pick the gene with the lowest p-value that doesn't have a simulated interaction, does the fit tell us anything?
+
+```{r}
+y_index <- which.min(lm_pvals[251:500]) + 250
+
+y <- exprs(sce)[y_index,]
+
+
+d <- data_frame(y, true_pseudotime, z_norm, x = factor(sce$x))
+
+fit <- lm(y ~ z_norm*x, data = d)
+
+d$predicted <- predict(fit)
+```
+
+First, the gene expression against true pseudotime:
+
+```{r}
+ggplot(d, aes(x = true_pseudotime, y = y, color = x)) +
+  geom_point()
+```
+
+Against the random normal pseudotime:
+
+```{r}
+ggplot(d, aes(x = z_norm, y = y, color = x)) +
+  geom_point()
+```
+
+And with the predicted expression:
+
+```{r}
+ggplot(d, aes(x = z_norm, color = x)) +
+  geom_point(aes(y = y)) +
+  geom_line(aes(y = predicted))
+```
+
+With actual pseudotime
+
+```{r}
+pst_df <- read_csv("../../data/simulations/pseudotimes/pseudofit_N_200_G_500_p_0.5_rep_8_noise_high_alg_monocle2.csv")
+
+pseudotime <- pst_df$pst
+
+mast_auc(pseudotime)
+lm_auc(pseudotime)
+```
+
+# Individual fits with Monocle pseudotime
+
+```{r}
+sce$pseudotime <- pseudotime
+
+lm_pvals <- apply(exprs(sce), 1, function(y) {
+  fit <- lm(y ~ sce$pseudotime * sce$x)
+  coef(summary(fit))[4,'Pr(>|t|)']
+})
+
+qplot(seq_along(lm_pvals), -log10(lm_pvals))
+
+y_index <- which.min(lm_pvals[251:500]) + 250
+
+y <- exprs(sce)[y_index,]
+
+
+d <- data_frame(y, true_pseudotime, pseudotime, x = factor(sce$x))
+
+fit <- lm(y ~ pseudotime*x, data = d)
+
+d$predicted <- predict(fit)
+```
+
+```{r}
+ggplot(d, aes(x = true_pseudotime, color = x, y = y)) +
+  geom_point() +
+  labs(x = "True pseudotime", y = "Expression") +
+  scale_colour_brewer(palette = "Set1", name = "Covariate") +
+  geom_smooth()
+
+plt1 <- last_plot()
+```
+
+```{r}
+ggplot(d, aes(x = pseudotime, color = x)) +
+  geom_point(aes(y = y)) +
+  geom_line(aes(y = predicted)) +
+  labs(x = "Monocle pseudotime", y = "Expression") +
+  scale_colour_brewer(palette = "Set1") +
+  theme(legend.position = "none") 
+
+plt2 <- last_plot()
+```
+
+```{r}
+y_index <- which.max(lm_pvals[1:250]) 
+
+y <- exprs(sce)[y_index,]
+
+
+d <- data_frame(y, true_pseudotime, pseudotime, x = factor(sce$x))
+
+fit <- lm(y ~ pseudotime*x, data = d)
+
+d$predicted <- predict(fit)
+
+ggplot(d, aes(x = true_pseudotime, color = x, y = y)) +
+  geom_point() +
+  labs(x = "True pseudotime", y = "Expression") +
+  scale_colour_brewer(palette = "Set1", name = "Covariate") +
+  geom_smooth()
+
+plt3 <- last_plot()
+  
+ggplot(d, aes(x = pseudotime, color = x)) +
+  geom_point(aes(y = y)) +
+  geom_line(aes(y = predicted))  +
+  labs(x = "Monocle pseudotime", y = "Expression") +
+  scale_colour_brewer(palette = "Set1") +
+  theme(legend.position = "none") 
+
+plt4 <- last_plot()
+```
+
+
+
+Plot it all together
+
+```{r}
+plot_grid(plt1, plt2, plt3, plt4,
+          labels = "AUTO", label_size = 11,
+          rel_widths = c(5,4))
+
+ggsave("../../figs/auc_small.png", width = 7, height = 5)
+```
+
+
+
+
+
+
+
+# Technical info
+
+```{r}
+sessionInfo()
+```
+
