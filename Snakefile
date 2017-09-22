@@ -53,7 +53,7 @@ hvg_pseudotimes = expand("data/hvg/pseudotime_{hvg_dset}_{hvg}_{hvg_algorithm}.c
                         hvg_dset = hvg_datasets, hvg = hvgs, hvg_algorithm = hvg_algorithms)
 
 hvgs_shalek = ["500", "1000", "2000", "4000", "6000", "all"]
-shalek_algs = ["dpt", "monocle2", "tscan", "phenopath"]
+shalek_algs = ["dpt", "monocle2", "tscan", "phenopath_init_time", "phenopath_init_pc1"]
 
 shalek_pseudotimes = expand("data/shalek_cor/pseudotime_{hvg_shalek}_{hvg_shalek_algorithm}.csv",
                             hvg_shalek = hvgs_shalek, 
