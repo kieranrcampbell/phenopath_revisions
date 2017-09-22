@@ -57,6 +57,7 @@ fit_shalek_pseudotime <- function(input_sceset = "input.rds",
   pseudotime <- switch(algorithm,
                        phenopath_init_time = trajectory(fit_phenopath(exprs(sce_hvg), sce_hvg$x, pst_init)),
                        phenopath_init_pc1 = trajectory(fit_phenopath(exprs(sce_hvg), sce_hvg$x)),
+                       phenopath_init_monocle = trajectory(fit_phenopath(exprs(sce_hvg), sce_hvg$x, fit_monocle2(exprs(sce_hvg)))),
                        monocle2 = fit_monocle2(exprs(sce_hvg)),
                        dpt = fit_dpt(exprs(sce_hvg)),
                        tscan = fit_tscan(exprs(sce_hvg)))

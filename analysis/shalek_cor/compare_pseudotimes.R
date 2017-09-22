@@ -37,7 +37,8 @@ plt1 <- ggplot(df_norm, aes(x = algorithm, y = pseudotime_norm, fill = time)) +
 # R2s ---------------------------------------------------------------------
 
 get_R2 <- function(pseudotime, time) {
-  fit <- lm(pseudotime ~ sce$time)
+  time_numeric <- as.numeric(gsub("h", "", time))
+  fit <- lm(pseudotime ~ time_numeric)
   s <- summary(fit)
   s$r.squared
 }
