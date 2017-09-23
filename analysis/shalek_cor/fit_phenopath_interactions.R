@@ -9,8 +9,7 @@ library(TSCAN)
 library(dpt)
 
 fit_phenopath_interactions <- function(exprs_mat, x, pst_init = 1) {
-  fit <- phenopath(t(exprs_mat), x, z_init = pst_init,
-                   a_beta = 1e-2, b_beta = 1e-2)
+  fit <- phenopath(t(exprs_mat), x, z_init = pst_init)
   return(significant_interactions(fit))
 }
 
