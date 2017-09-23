@@ -82,8 +82,8 @@ rule all:
         # "figs/mast.png"
         # hvg_pseudotimes,
         # "figs/hvg.png",
-        # shalek_pseudotimes
-        shalek_interactions
+        shalek_pseudotimes
+        # shalek_interactions
 
 
 # Shalek correlation stuff -----------
