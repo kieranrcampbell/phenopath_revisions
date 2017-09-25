@@ -51,7 +51,7 @@ df_R2 <- group_by(df_norm, algorithm, hvg) %>%
 # df_R2$hvg <- plyr::mapvalues(df_R2$hvg, from = "all", to = as.character(nrow(sce)))
 df_R2$hvg <- factor(as.numeric(df_R2$hvg))
 
-df_R2 <- filter(df_R2, !grepl("init_monocle", algorithm) & !grepl("init_time", algorithm))
+# df_R2 <- filter(df_R2, !grepl("init_monocle", algorithm) & !grepl("init_time", algorithm))
 
 ggplot(df_R2, aes(x = hvg, y = R2_to_time, group = algorithm, color = algorithm)) +
   geom_point() + geom_line() +
