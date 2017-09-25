@@ -78,8 +78,8 @@ rule all:
         # linear_psts,
         # linear_coefs,
         # "figs/mast.png"
-        hvg_pseudotimes,
-        "figs/hvg.png",
+        # hvg_pseudotimes,
+        # "figs/hvg.png",
         shalek_pseudotimes
         # shalek_interactions
 
@@ -88,11 +88,11 @@ rule all:
 
 rule qc_shalek:
     input:
-        "data/paper-scesets/sce_shalek.rds"
+        "data/paper-scesets/GSE48968-GPL13112.rds"
     output:
         "data/paper-scesets/sce_shalek_qc.rds"
     shell:
-        "Rscript analysis/shalek_cor/qc-shalek.R"
+        "Rscript analysis/shalek_reanalysis/qc-shalek2.R"
 
 rule fit_shalek_pseudotimes:
     input:

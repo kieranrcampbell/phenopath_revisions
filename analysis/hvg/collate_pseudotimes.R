@@ -13,15 +13,15 @@ df_list <- lapply(all_files, read_csv)
 
 df <- bind_rows(df_list)
 
-df_ref <- filter(df, hvg == 4000) %>% select(-hvg)
-df_comp <- filter(df, hvg != 4000)
+df_ref <- filter(df, hvg == 1000) %>% select(-hvg)
+df_comp <- filter(df, hvg != 1000)
 
 df_all <- inner_join(df_ref, df_comp,
                      by = c("sample", "algorithm", "dataset"),
-                    suffix = c("_all", "_4000"))
+                    suffix = c("_all", "_1000"))
 
 df_cor <- group_by(df_all, algorithm, dataset, hvg) %>% 
-  summarise(cor_to_4000 = cor(pseudotime_all, pseudotime_4000))
+  summarise(cor_to_4000 = cor(pseudotime_all, pseudotime_1000))
 
 alg_from <- c("monocle", "phenopath")
 alg_to <- c("Monocle 2", "PhenoPath")
@@ -34,9 +34,10 @@ df_cor$dataset <- plyr::mapvalues(df_cor$dataset, from = dataset_from, to = data
 df_cor$hvg <- factor(df_cor$hvg)
 
 ggplot(df_cor, aes(x = hvg, y = abs(cor_to_4000), color = algorithm, group = algorithm)) + 
-  geom_point() + facet_wrap(~ dataset) +
-  geom_line() +
-  labs(subtitle = "Correlation to 4000 highly-variable-gene (HVG) pseudotime",
+  facet_wrap(~ dataset) +
+  geom_line(size = 1.5) +
+  geom_point(shape = 21, fill = 'white', size = 2.5) + 
+  labs(subtitle = "Correlation to 1000 highly-variable-gene (HVG) pseudotime",
        x = "Number of HVGs", y = "Correlation") +
   scale_color_brewer(palette = "Set1",
                      name = "Algorithm") +

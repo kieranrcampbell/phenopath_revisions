@@ -14,9 +14,7 @@ plotPhenoData(sce, aes(x = total_counts, y = total_features))
 
 sce <- sce[, sce$total_counts > 1e4]
 
-plotPCA(sce, colour_by = "pct_dropout")
-plotPCA(sce, colour_by = "LYZ1", ntop = 1e3)
-plotPCA(sce, colour_by = "SERPINB6B", ntop = 1e3)
+
 
 Lyz1 <- exprs(sce)["LYZ1",]
 Serpinb6b <- exprs(sce)["SERPINB6B",]

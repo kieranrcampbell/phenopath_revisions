@@ -58,31 +58,8 @@ alg_to <- c("DPT", "Monocle 2", "PhenoPath", "TSCAN")
 df_R2$algorithm <- plyr::mapvalues(df_R2$algorithm, from = alg_from, to = alg_to)
 
 ggplot(df_R2, aes(x = hvg, y = R2_to_time, group = algorithm, color = algorithm)) +
-  geom_point() + geom_line() +
-  labs(y = "R2 to true time", x = "Number of highly variable genes") +
+  geom_line(size = 1.5) + geom_point(shape = 21, fill = 'white', size = 3) +
+  labs(y = expression(R^2~"to capture time"), x = "Number of highly variable genes") +
   scale_color_brewer(palette = "Set1", name = "Algorithm")
 
-# 
-# all_files <- dir(hvg_dir, full.names = TRUE)
-# all_files <- all_files[grepl("interaction", all_files)]
-# 
-# 
-# df_list <- lapply(all_files, read_csv)
-# df_list <- lapply(df_list, function(d) { d$hvg <- as.character(d$hvg);  d} )
-# 
-# df_int <- bind_rows(df_list)
-# 
-# df_int_g <- group_by(df_int, algorithm, hvg) %>% 
-#   summarise(pct_interactions = 100 * mean(interactions),
-#             num_interactions = sum(interactions))
-# 
-# df_int_g$hvg <- plyr::mapvalues(df_int_g$hvg, from = "all", to = as.character(nrow(sce)))
-# df_int_g$hvg <- factor(as.numeric(df_int_g$hvg))
-# 
-# ggplot(df_int_g, aes(x = hvg, y = pct_interactions, color = algorithm, group = algorithm)) +
-#   geom_point() + geom_line()
-# 
-# ggplot(df_int_g, aes(x = hvg, y = num_interactions, color = algorithm, group = algorithm)) +
-#   geom_point() + geom_line()
-
-
+ggsave("figs/shalek_cor.png", width = 5, height = 3)
