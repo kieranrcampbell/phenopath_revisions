@@ -52,7 +52,7 @@ paper_scesets = expand("data/paper-scesets/sce_{hvg_dset}_clvm.rds", hvg_dset = 
 hvg_pseudotimes = expand("data/hvg/pseudotime_{hvg_dset}_{hvg}_{hvg_algorithm}.csv",
                         hvg_dset = hvg_datasets, hvg = hvgs, hvg_algorithm = hvg_algorithms)
 
-hvgs_shalek = ["500", "1000", "2000", "4000", "6000", "all"]
+hvgs_shalek = ["500", "1000", "2000", "4000", "6000", "10000"]
 shalek_algs = ["dpt", "monocle2", "tscan", "phenopath_init_time", "phenopath_init_pc1",
                 "phenopath_init_monocle"]
 phenopath_shalek_algs = ["phenopath_init_time", "phenopath_init_pc1",
@@ -88,9 +88,17 @@ rule all:
 
 # Shalek correlation stuff -----------
 
+rule qc_shalek:
+    input:
+        "data/paper-scesets/sce_shalek.rds"
+    output:
+        "data/paper-scesets/sce_shalek_qc.rds"
+    shell:
+        "Rscript analysis/shalek_cor/qc-shalek.R"
+
 rule fit_shalek_pseudotimes:
     input:
-        "data/paper-scesets/sce_shalek_clvm.rds"
+        "data/paper-scesets/sce_shalek_qc.rds"
     output:
         "data/shalek_cor/pseudotime_hvg_{hvg_shalek}_alg_{hvg_shalek_algorithm}.csv"
     shell:
