@@ -53,6 +53,10 @@ df_R2$hvg <- factor(as.numeric(df_R2$hvg))
 
 # df_R2 <- filter(df_R2, !grepl("init_monocle", algorithm) & !grepl("init_time", algorithm))
 
+alg_from <- c("dpt", "monocle2", "phenopath_init_pc1", "tscan")
+alg_to <- c("DPT", "Monocle 2", "PhenoPath", "TSCAN")
+df_R2$algorithm <- plyr::mapvalues(df_R2$algorithm, from = alg_from, to = alg_to)
+
 ggplot(df_R2, aes(x = hvg, y = R2_to_time, group = algorithm, color = algorithm)) +
   geom_point() + geom_line() +
   labs(y = "R2 to true time", x = "Number of highly variable genes") +
