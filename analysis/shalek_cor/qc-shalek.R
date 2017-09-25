@@ -1,5 +1,7 @@
 library(scater)
 
+scale_vec <- function(x) (x - mean(x)) / sd(x)
+
 sce <- readRDS("data/paper-scesets/sce_shalek.rds")
 
 sce <- sce[, sce$stimulant != "PIC"]
@@ -33,5 +35,7 @@ sce <- sce[, to_keep]
 m <- model.matrix(~ sce$pct_dropout)
 sc <- normaliseExprs(sce, design = m)
 exprs(sc) <- norm_exprs(sc)
+
+sc$x <- scale_vec( sc$stimulant == "LPS" )
 
 saveRDS(sc, "data/paper-scesets/sce_shalek_qc.rds")
