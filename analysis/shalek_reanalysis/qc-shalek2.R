@@ -65,7 +65,14 @@ qplot(Lyz1, Serpinb6b, color = to_keep) +
 
 sce_qc2 <- sce_qc[, to_keep]
 
-sce_qc2$x <- sce_qc2$stimulant == "LPS"
+sce_qc2$x <- 1 * (sce_qc2$stimulant == "LPS")
+
+qplot(sce_qc2$total_features)
+plotQC(sce_qc2, type = 'find', var = 'total_features', ntop = 2e3)
+
+m <- model.matrix(~ sce_qc2$total_features)
+sce_qc2 <- normaliseExprs(sce_qc2, design = m)
+exprs(sce_qc2) <- norm_exprs(sce_qc2)
 
 saveRDS(sce_qc2, "data/paper-scesets/sce_shalek_qc.rds")
 
