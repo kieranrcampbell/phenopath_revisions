@@ -19,7 +19,7 @@ dex_analysis_mast <- function(input_sceset = "sce.rds",
   
   cells_non_na <- which(!is.na(pseudotime))
   
-  pdata <- data.frame(x = sce$x, pseudotime)
+  pdata <- data.frame(x = factor(sce$x), pseudotime)
   rownames(pdata) <- colnames(sce)
   
   sca <- FromMatrix(exprs(sce), pdata)

@@ -73,14 +73,15 @@ rule all:
         # "data/simulations/roc.csv",
         # "data/simulations/roc_deseq.csv",
         # "data/simulations/roc_phenopath.csv",
-        # "data/simulations/roc_mast.csv",
+        dex_qvals_mast,
+        "data/simulations/roc_mast.csv",
         # "data/simulations/roc_monocle.csv",
         # linear_psts,
         # linear_coefs,
         # "figs/mast.png"
-        hvg_pseudotimes,
+        # hvg_pseudotimes,
         # "figs/hvg.png",
-        shalek_pseudotimes
+        # shalek_pseudotimes
 
 
 # Shalek correlation stuff -----------
