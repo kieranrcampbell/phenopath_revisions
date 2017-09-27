@@ -1,0 +1,157 @@
+---
+title: "PhenoPath with arbitrary design matrices"
+author: "Kieran Campbell"
+date: "September 2017"
+output:
+  html_document:
+    toc: yes
+---
+
+# Introduction
+
+In this vignette we briefly introduce how to use PhenoPath with more complex design matrices. Rather than a binary or continuous variable, we consider a 3-level categorical variable.
+
+# Simulating data
+
+First load some useful libraries:
+
+```{r, warning = FALSE}
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(viridis))
+suppressPackageStartupMessages(library(phenopath))
+
+knitr::opts_chunk$set(fig.height = 4, fig.width = 6, fig.align = 'center')
+
+set.seed(5L)
+```
+
+We'll simulate for 200 samples and 80 features:
+
+```{r}
+N <- 200
+G <- 80
+```
+
+First, draw `N` pseudotimes from a standard normal distribution:
+
+```{r}
+pst <- rnorm(N)
+```
+
+We'll sample the `x` variable from one of 3 levels, and turn that into a one-hot encoded design matrix using the `model.matrix` function:
+
+```{r}
+x <- factor(sample(1:3, N, replace = TRUE))
+x_mat <- as.matrix(model.matrix(~ 0 + x))
+head(x_mat)
+```
+
+Note that we use the no-intercept version of the design matrix (rather than `model.matrix(~ x)`) to make interpreting coefficients easier.
+
+Next we'll create the $\alpha$ and $\beta$ matrix. For the purpose of illustration, we construct $\beta$ in a slightly unusual way so that each gene is affected only when $x$ takes on one of its three different levels for ease of interpretation:
+
+```{r}
+alpha <- matrix(rnorm(G * 3), ncol = 3)
+
+lambda <- rnorm(G)
+
+b <- sample(1:3, G, replace = TRUE)
+beta <- as.matrix(model.matrix(~ 0 + factor(b)))
+beta_sign <- matrix(sample(c(-1, 1), G * 3, replace = TRUE), ncol = 3)
+beta <- beta * beta_sign
+```
+
+Finally we construct the expression matrix itself and add N(0,1) noise.
+
+```{r}
+Y <- x_mat %*% t(alpha) + x_mat %*% t(beta) * pst + pst %*% t(lambda)
+Y <- apply(Y, 2, function(y) rnorm(N, y, 1))
+```
+
+We can quickly view this data in PCA space to get a feel for what it looks like:
+
+```{r}
+pca_df <- prcomp(Y)$x[,1:2] %>% 
+  as_data_frame() %>% 
+  mutate(pst, x)
+
+ggplot(pca_df, aes(x = PC1, y = PC2, color = pst)) +
+  geom_point() +
+  scale_colour_viridis()
+
+ggplot(pca_df, aes(x = PC1, y = PC2, color = factor(x))) +
+  geom_point() +
+  scale_colour_brewer(palette = "Set1")
+```
+
+# Inference with PhenoPath
+
+To perform inference with PhenoPath we simply pass in the matrix of gene expression and the one-hot-encoded design matrix. Although this can be done in other ways this leads to the easiest interpretation in terms of parameter estimates and posterior intervals:
+
+```{r, cache = TRUE}
+m <- as.matrix(model.matrix(~ 0 + factor(x)))
+fit <- phenopath(Y, m)
+```
+
+And plot the ELBO to make sure things have converged:
+
+```{r}
+plot_elbo(fit)
+```
+
+
+# Inspecting results
+
+First let's compare the inferred pseudotime against the true:
+
+```{r}
+qplot(pst, trajectory(fit)) +
+  labs(x = "True", y = "PhenoPath")
+```
+
+Next let's get the matrix of fitted coefficients:
+
+```{r}
+beta_fit <- t(fit$m_beta)
+head(beta_fit)
+```
+
+We can compare these to the true values:
+
+```{r, fig.height = 3}
+dfs <- lapply(1:3, function(i) {
+  data_frame(true = beta[,i], inferred = beta_fit[,i], x = as.character(i))
+})
+df <- bind_rows(dfs)
+
+ggplot(df, aes(x = true, y = inferred)) +
+  geom_point() +
+  facet_wrap(~ x)
+```
+
+Finally, we can look at the significant interactions:
+
+```{r, fig.width = 4}
+misclass <- as_data_frame(abs(beta) - 1 * significant_interactions(fit, 3))
+names(misclass) <- as.character(1:3)
+misclass$g <- seq_len(nrow(misclass))
+
+misclass_tidy <- gather(misclass, p, classif, -g)
+misclass_tidy$classif <- plyr::mapvalues(misclass_tidy$classif,
+                                         from = c(-1, 0, 1),
+                                         to = c("False positive", "Correct", "False negative"))
+
+ggplot(misclass_tidy, aes(x = p, y = g, fill = classif)) +
+  geom_raster() +
+  scale_fill_brewer(palette = "Blues")
+```
+
+
+# Technical
+
+```{r}
+sessionInfo()
+```
+
+
+
