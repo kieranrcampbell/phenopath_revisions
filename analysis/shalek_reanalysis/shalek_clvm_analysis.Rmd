@@ -1,0 +1,495 @@
+---
+title: "Shalek PhenoPath analysis"
+author: "Kieran Campbell"
+date: "September 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE, cache=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE, fig.width = 6, fig.height = 4)
+
+library(scater)
+library(tidyverse)
+library(magrittr)
+library(matrixStats)
+library(ggrepel)
+library(cowplot)
+library(viridis)
+library(splines)
+library(DT)
+library(limma)
+library(edgeR)
+library(RColorBrewer)
+library(goseq)
+library(phenopath)
+
+
+
+# http://stackoverflow.com/questions/18509527/first-letter-to-upper-case
+firstup <- function(x) {
+   substr(x, 1, 1) <- toupper(substr(x, 1, 1))
+x
+}
+
+set.seed(123L)
+
+scale_vec <- function(x) (x - mean(x)) / sd(x)
+
+```
+
+# Fit the CLVM model
+
+```{r}
+sce <- readRDS("../../data/paper-scesets/sce_shalek_qc.rds")
+gene_vars <- rowVars(exprs(sce))
+var_cutoff <- sort(gene_vars, decreasing = TRUE)[6500]
+
+sce_hvg <- sce[gene_vars >= var_cutoff, ]
+
+is_na_mgi_symbol <- is.na(fData(sce_hvg)$mgi_symbol)
+fData(sce_hvg)$mgi_symbol[is_na_mgi_symbol] <- featureNames(sce_hvg)[is_na_mgi_symbol]
+
+is_Rasgefb1 <- match("ENSMUSG00000029333.14", featureNames(sce_hvg))
+fData(sce_hvg)$mgi_symbol[is_Rasgefb1] <- "Rasgefb1"
+```
+
+And perform inference:
+
+```{r}
+pc1 <- prcomp(t(exprs(sce_hvg)), scale = TRUE)$x[,1]
+pc1 <- scale_vec(pc1)
+time_numeric <- as.numeric(gsub("h", "", sce$time))
+pc1 <- pc1 * sign(cor(pc1, time_numeric))
+x <- 2 * (sce_hvg$stimulant == "LPS") - 1
+
+pcavi <- phenopath(sce_hvg, x, z_init = pc1)
+```
+
+
+
+Plot the elbo:
+
+```{r plot-elbo}
+plot_elbo(pcavi) +
+  xlab(expression("CAVI iterations")) +
+  theme_cowplot(font_size = 11)
+
+ggsave("../../figs/elbo_shalek.png", width = 5, height = 3)
+```
+
+
+# Exploring PhenoPath results
+
+## Comparison to PC1
+
+```{r pseudotime-vs-pc1}
+xs <- sce_hvg$stimulant
+ 
+qplot(scale_vec(pc1), pcavi$m_z, color = factor(xs)) +
+  scale_color_brewer(palette = "Set1", name = "Stimulant") +
+  #stat_function(fun = function(x) x, color = 'black') + 
+  xlab("PC1") + ylab(expression(z))
+```
+
+
+## Identifying significant genes
+
+
+```{r beta-df}
+
+fData(sce_hvg)$ensembl_gene_id <- sapply(strsplit(featureNames(sce_hvg), ".", fixed = TRUE), `[`, 1)
+
+df_beta <- data_frame(
+  lambda = pcavi$m_lambda,
+  beta = pcavi$m_beta[1,],
+  chi = pcavi$chi_exp[1,],
+  alpha = pcavi$m_alpha[1,],
+  gene = fData(sce_hvg)$mgi_symbol, #stringr::str_to_title(featureNames(sce_hvg)),
+  ensembl_gene_id = fData(sce_hvg)$ensembl_gene_id,
+  is_sig = significant_interactions(pcavi, n = 3)#[,1]
+)
+
+
+df_beta$is_sig_graph <- 
+  plyr::mapvalues(df_beta$is_sig, from = c(FALSE, TRUE),
+                  to = c("Non-significant", "Significant"))
+```
+
+This gives:
+
+```{r how-many-sig}
+sum(df_beta$is_sig)
+```
+
+_significant_ interactions.
+
+We can plot these:
+
+```{r plot-sigs}
+chi_cutoff <- 0.15
+df_beta <- dplyr::mutate(df_beta, 
+                  gene_symbol = gene)
+
+
+ggplot(df_beta, aes(x = beta, y = 1 / chi, color = is_sig_graph)) + 
+  geom_point(alpha = 0.8) +
+  theme(legend.title = element_blank()) +
+  # geom_point(data = dplyr::filter(df_beta, is_mmr), alpha = 0.6) +
+  scale_color_brewer(palette = "Set1", name = "'Significant'") +
+     geom_label_repel(data = dplyr::filter(df_beta, 1 / chi > chi_cutoff), aes(label = gene_symbol)) +
+  xlab(expression(beta)) +
+  ylab(expression(paste("[", chi, "]"^-1)))
+  
+```
+
+Which genes are sig?
+
+```{r dt-sig}
+dplyr::filter(df_beta, is_sig) %>% dplyr::arrange(desc(abs(beta))) %>% 
+  dplyr::select(gene, beta, alpha) %>% 
+  datatable()
+```
+
+We can plot expression along phenotime for the 35 _significant_ genes:
+
+```{r exprs-along-pst, fig.width = 12, fig.height = 9}
+tmap <- pcavi$m_z
+
+top_genes <- dplyr::filter(df_beta, is_sig) %>% 
+  dplyr::arrange(desc(abs(beta))) %>% 
+  extract2("gene") %>% head(n=10)
+```
+
+Check z loosely corresponds to time:
+
+```{r dfz}
+zdf <- data_frame(z = pcavi$m_z, time = sce$time, stimulant = xs)
+
+ggplot(zdf, aes(x = time, y = z, fill = time)) + 
+  geom_violin(alpha = 0.8) +
+  theme(legend.position = "none") + 
+  scale_fill_brewer(palette = "Set1") +
+  # scale_fill_brewer(palette = "Set1") +
+  xlab("Capture time") +
+  ylab("Pathway score\n(pseudotime)") +
+  theme(axis.text = element_text(size = 8),
+        axis.title = element_text(size = 9),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10)) 
+
+time_plot <- last_plot()
+```
+
+
+
+
+```{r mlh1}
+
+make_gene_plot <- function(genes) {
+  inds <- match(genes, fData(sce_hvg)$mgi_symbol)
+  
+  df <- t(exprs(sce_hvg))[, inds, drop=FALSE] 
+  colnames(df) <- genes #featureNames(sce_hvg)[inds]
+  
+  df <- as_data_frame(df) %>% 
+    dplyr::mutate(phenopath = pcavi$m_z, x = as.character(xs)) %>% 
+    gather(gene, expression, -phenopath, -x)
+  
+  df$gene <- factor(df$gene, levels = genes)
+  
+  df_nox <- dplyr::select(df, -x)
+  
+  ggplot(df, aes(x = phenopath, y = expression, fill = x, color = x)) + 
+    geom_point(data = df_nox, color = "grey80", fill = "grey80") +
+    geom_point(shape = 21, color = 'grey30', alpha = 0.5) +
+    facet_grid(gene ~ x, scales = "free") + 
+    scale_fill_brewer(palette = "Set1", name = "MSI") +
+    scale_color_brewer(palette = "Set1", name = "MSI") +
+    theme(legend.position = "none", strip.text = element_text(size = 10, face = "bold"),
+          strip.text.y = element_text(size = 8),
+          strip.background = element_rect(colour = "black", fill = "grey95", 
+                                          size = 0.5, linetype = 1)) +
+  theme(axis.text = element_text(size = 9),
+        axis.text.y = element_text(size = 8),
+        axis.title = element_text(size = 10)) +
+    stat_smooth(se = FALSE, method = "lm", size = 1.5, formula = y ~ ns(x,3),
+                color = 'grey30') +
+    ylab(expression("Normalised expression")) + 
+    xlab("Pathway score (pseudotime)")
+}
+
+# genes <- c("Ifi204", "Ms4a6c", "Procr")
+genes <- top_genes[1:4]
+
+make_gene_plot(genes)
+
+gene_plot <- last_plot()
+```
+
+Now do the same for original time series:
+
+```{r}
+inds <- match(genes, fData(sce_hvg)$mgi_symbol)
+
+df <- t(exprs(sce_hvg))[, inds, drop=FALSE] 
+colnames(df) <- genes
+  
+df <- as_data_frame(df) %>% 
+    dplyr::mutate(capture_time = sce_hvg$time, x = as.character(xs)) %>% 
+    gather(gene, expression, -capture_time, -x)
+  
+df$gene <- factor(df$gene, levels = genes)
+
+df_g <- group_by(df, capture_time, x, gene) %>% 
+  summarise(median_expression = median(expression))
+
+ggplot(df, aes(x = capture_time, y = expression, fill = x, color = x)) + 
+    geom_jitter(shape = 21, color = 'grey30', alpha = 0.3, width = 0.1) +
+    facet_grid(gene ~ x, scales = "free") + 
+    scale_fill_brewer(palette = "Set1") +
+    scale_color_brewer(palette = "Set1") +
+    theme(legend.position = "none", strip.text = element_text(size = 10, face = "bold"),
+          strip.text.y = element_text(size = 8),
+          strip.background = element_rect(colour = "black", fill = "grey95", 
+                                          size = 0.5, linetype = 1)) +
+  theme(axis.text = element_text(size = 9),
+        axis.text.y = element_text(size = 8),
+        axis.title = element_text(size = 10)) +
+    ylab(expression("Normalised expression")) + 
+    xlab("Capture time") +
+      geom_point(data = df_g, aes(y = median_expression), 
+                 shape = 21, color = 'black', size = 2) +
+  geom_line(data = df_g, aes(y = median_expression, group = 1))
+
+ggsave("../../figs/supplementary_time_shalek.png", width = 6, height = 4)
+```
+
+
+
+# Differential expression comparison
+
+We'll use limma-voom for standard differential expression:
+
+
+```{r limma}
+dge <- DGEList(counts(sce_hvg))
+dge <- calcNormFactors(dge)
+
+design <- model.matrix(~ x, pData(sce_hvg))
+v <- voom(dge, design, plot = TRUE)
+
+fit <- lmFit(v, design)
+fit <- eBayes(fit)
+results <- decideTests(fit)
+
+
+df_limma <- data_frame(coef = fit$coefficients[,2], 
+                       pval = fit$p.value[,2],
+                       mu = pcavi$m_mu,
+                       ensembl_gene_id = fData(sce_hvg)$ensembl_gene_id) %>% 
+  left_join(df_beta, by = "ensembl_gene_id") %>% 
+  dplyr::mutate(qval = p.adjust(pval, method = "BH"),
+                log10qval = -log10(qval))
+```
+
+
+```{r compare-beta}
+
+cols <- RColorBrewer::brewer.pal(3, "Set2")
+cols2 <- c("#c5e2d9", cols[2])
+
+ggplot(df_limma, aes(x = beta, y = log10qval, color = is_sig_graph)) + 
+  geom_point() +
+  ylab(expression(paste("Limma Voom -", log[10], "(q-value)"))) + 
+  xlab(expression(paste("PhenoPath ", beta))) +
+  geom_hline(yintercept = -log10(0.05), linetype = 2, alpha = 0.5) +
+  theme(axis.text = element_text(size = 8),
+        axis.title = element_text(size = 9),
+        axis.title.y = element_text(size = 8)) +
+  theme(legend.title = element_text(size = 9),
+        legend.text = element_text(size = 8)) +
+  scale_color_manual(values = cols2, name = "Interaction") +
+  theme(legend.margin = margin(), legend.position = "none")
+
+de_plot <- ggExtra::ggMarginal(last_plot(), margins = "y", type = "histogram", size = 10)
+```
+
+Again no obvious relationship.
+
+# Crossover bit for chris
+
+```{r df-beta}
+df_beta <- mutate(df_beta,
+                  crossover = - alpha / beta)
+
+filter(df_beta, is_sig) %>% 
+  ggplot(aes(x = crossover)) + geom_histogram()
+```
+
+
+```{r save-supp-data}
+write_csv(df_beta, "../../data/shalek/shalek_interactions.csv")
+```
+
+```{r more-vis}
+textinfo <- frame_data(
+  ~x, ~y, ~label,
+  1, 0.2, "Gene upregulated along pseudotime\nLPS increases upregulation",
+  1, -0.2, "Gene upregulated along pseudotime\nPAM increases upregulation",
+  -1.1, 0.2, "Gene downregulated along pseudotime\nPAM increases downregulation",
+  -1.1, -0.2, "Gene downregulated along pseudotime\nLPS increases downregulation"
+)
+
+cols <- RColorBrewer::brewer.pal(3, "Set2")
+cols2 <- c("#c5e2d9", cols[2])
+
+ggplot(df_beta, aes(x = lambda, y = beta, color = is_sig_graph)) + 
+  geom_point() +
+  geom_vline(xintercept = 0, linetype = 2, alpha = 0.5) +
+  geom_hline(yintercept = 0, linetype = 2, alpha = 0.5) +
+  scale_color_manual(values = cols2, name = "Interaction") +
+  geom_text_repel(data = dplyr::filter(df_beta, (beta > 0.7 & is_sig) | beta < -1.1),
+                aes(label = gene), color = 'black',
+                size = 2.5) +
+  ylab("Covariate pathway interaction") +
+  xlab("Pathway loading") +
+  theme(legend.position = 'bottom',  #, legend.margin = margin(),
+        axis.text = element_text(size = 10),
+        axis.title = element_text(size = 11),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10)) +
+  geom_text(data = textinfo, aes(x = x, y = y, label = label), 
+            color = 'black', size = 3)
+lplot <- ggExtra::ggMarginal(last_plot(), margins = "y", type = "histogram", size = 10)
+print(lplot)
+```
+
+# What is pseudotime (2)
+
+
+```{r get-correlations}
+genome <- "mm9"
+id <- "ensGene"
+
+all_genes <- fData(sce_hvg)$ensembl_gene_id
+
+upreg_genes <- filter(df_beta, is_sig, beta > 0) %>% extract2("ensembl_gene_id") 
+downreg_genes <- filter(df_beta, is_sig, beta < 0) %>% extract2("ensembl_gene_id")
+
+upg <- 1 * (all_genes %in% upreg_genes)
+downg <- 1 * (all_genes %in% downreg_genes)
+
+names(upg) <- names(downg) <- all_genes
+
+pwfup <- nullp(upg, genome, id)
+goup <- goseq(pwfup, genome, id, test.cats = "GO:BP")
+
+pwfdown <- nullp(downg, genome, id)
+godown <- goseq(pwfdown, genome, id, test.cats = "GO:BP")
+```
+
+Graph results:
+
+```{r graph-res}
+parse_go <- function(go, type, n_tested) {
+  go <- go %>% 
+    mutate(qval = p.adjust(over_represented_pvalue)) %>% 
+    mutate(log10qval = -log10(qval),
+           prop_in_cat = numInCat / n_tested) %>% 
+    head(n = 6) %>% 
+    mutate(type = type) %>% 
+    tbl_df() %>% 
+    arrange(desc(log10qval))
+  go
+}
+
+
+gos <- bind_rows(
+  parse_go(goup, "LPS up-regulated", length(upreg_genes)),
+  parse_go(godown, "PAM up-regulated", length(downreg_genes))
+)
+
+# gos <- filter(gos, type == "LPS up-regulated") 
+
+gos$term <- stringr::str_to_title(gos$term)
+gos$term <- factor(gos$term, levels = gos$term[order(gos$log10qval)])
+
+gos <- mutate(gos, prop_cat = numDEInCat / numInCat)
+
+
+gos %>% 
+  filter(qval < 0.05) %>% 
+ggplot(aes(x = term, y = log10qval)) + #, size = 100 * prop_cat)) +
+  geom_segment(aes(y = min(log10qval - 1), yend = log10qval, x = term, xend = term),
+               color = 'grey30', linetype = 3) +
+    geom_point(aes(color = type, shape = type)) +
+    coord_flip() +
+  # facet_wrap(~ type, ncol = 1, scales = "free") +
+    theme(axis.title.y = element_blank()) +
+    ylab(expression(paste("-", log[10], " q-value"))) +
+  scale_size(name = "% category\nrepresented") +
+    theme(legend.position = "none",
+        axis.text = element_text(size = 8),
+        axis.text.y = element_text(size = 7),
+        axis.title = element_text(size = 10),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10)) +
+  scale_color_brewer(palette = "Set1") +
+  theme(strip.text = element_text(size = 8, face = "bold"),
+          strip.background = element_rect(colour = "black", fill = "grey95", 
+                                          size = 0.5, linetype = 1))
+ggsave("../../figs/go.png", width = 5, height = 5)
+goplot <- last_plot()
+```
+
+
+```{r large-plot}
+lsize <- 11
+
+bottom_top_left <- plot_grid(time_plot,NULL, de_plot, nrow = 1,
+                                rel_widths = c(7,1,6),
+                                # labels = c("D", "E", ""), 
+                             label_size = lsize)
+
+bottom_left <- plot_grid(bottom_top_left, goplot,
+                         ncol = 1, # labels = c("", "F"),
+                         label_size = lsize)
+
+bottom_grid <- plot_grid(bottom_left, gene_plot, nrow = 1, # labels = c("", "G"),
+                         label_size = lsize, rel_widths = c(4,5))
+
+shalek_plot <- plot_grid(lplot, bottom_grid, ncol = 1, rel_heights = c(2,1.5), # labels = c("C",""),
+          label_size = lsize)
+
+ggsave("../../figs/shalek.png", shalek_plot, width = 9, height = 8)
+```
+
+# Antiviral pathway score
+
+```{r}
+library(readxl)
+
+supp_paper <- read_excel("../../data/supplementary/nature13437-s4.xls")
+
+anti_viral <- mutate(supp_paper, gene = stringr::str_to_title(GENE)) %>% 
+  filter(CLUSTER == "Id")
+
+mm <- match(anti_viral$gene, fData(sce_hvg)$mgi_symbol)
+fData(sce_hvg)$anti_viral <- rep(FALSE, nrow(sce_hvg))
+fData(sce_hvg)$anti_viral[mm] <- TRUE
+
+sce_av <- sce_hvg[fData(sce_hvg)$anti_viral, ]
+
+scaled_exprs <- scale(t(exprs(sce_av)))
+
+qplot(pcavi$m_z, rowMeans(scaled_exprs), color = xs) +
+  labs(x = "Pseudotime", y = "Kieran's special\nantiviral score") +
+  scale_colour_brewer(palette = "Set1", name = "Stimulant")
+```
+
+
+# Technical
+
+```{r technical}
+sessionInfo()
+```

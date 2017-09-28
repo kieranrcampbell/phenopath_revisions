@@ -1,0 +1,175 @@
+---
+title: "Comparing PhenoPath to treating covariates separately"
+author: "Kieran Campbell"
+date: "September 2017"
+output:
+  html_document:
+    toc: yes
+---
+
+# Introduction
+
+In this vignette we briefly compare PhenoPath to pseudotime inference on the Shalek et al. dataset splitting the covariates separately.
+
+
+
+First load some useful libraries:
+
+```{r, warning = FALSE}
+suppressPackageStartupMessages(library(scater))
+suppressPackageStartupMessages(library(cowplot))
+suppressPackageStartupMessages(library(monocle))
+suppressPackageStartupMessages(library(phenopath))
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(magrittr))
+
+knitr::opts_chunk$set(fig.height = 4, fig.width = 6, fig.align = 'center',
+                      cache = TRUE)
+
+theme_set(theme_cowplot(font_size = 11))
+
+set.seed(5L)
+```
+
+Function to fit pseudotimes with Monocle 2:
+
+```{r}
+fit_monocle2 <- function(sce) {
+  exprs_mat <- exprs(sce)
+  cds <- newCellDataSet(exprs_mat)
+  sizeFactors(cds) <- rep(1, ncol(cds))
+  cds <- setOrderingFilter(cds, rownames(exprs_mat))
+  cds <- reduceDimension(cds, norm_method = "none")
+  cds <- orderCells(cds)
+  cds$time <- sce$time
+  cds
+}
+```
+
+Function to get $R^2$ compared to true time:
+
+```{r}
+get_R2 <- function(pseudotime, time) {
+  time <- as.numeric(gsub("h", "", time))
+  fit <- lm(pseudotime ~ time)
+  s <- summary(fit)
+  s$r.squared
+}
+```
+
+Load the SCESet:
+
+```{r}
+sce <- readRDS("../../data/paper-scesets/sce_shalek_qc.rds")
+```
+
+Get highly variable genes and split by stimulant status:
+
+```{r}
+row_vars <- matrixStats::rowVars(exprs(sce))
+high_var <- row_vars >= sort(row_vars, decreasing = TRUE)[5000]
+
+sce_hvg <- sce[high_var, ]
+
+sce_lps <- sce_hvg[, sce$stimulant == "LPS"]
+sce_pam <- sce_hvg[, sce$stimulant == "PAM"]
+
+sces <- list(
+  lps = sce_lps,
+  pam = sce_pam
+)
+```
+
+Now fit the Monocle pseudotimes:
+
+```{r}
+cds_sets <- lapply(sces, fit_monocle2)
+pseudotimes <- lapply(cds_sets, function(cds) cds$Pseudotime)
+```
+
+```{r}
+print(get_R2(pseudotimes[[1]], sces[[1]]$time))
+print(get_R2(pseudotimes[[2]], sces[[2]]$time))
+```
+
+And do the same for PhenoPath:
+
+```{r}
+pp_fit <- phenopath(sce_hvg, sce_hvg$x)
+
+get_R2(trajectory(pp_fit), sce_hvg$time)
+```
+
+Let's go through the Monocle fits and perform differential expression:
+
+```{r}
+de_cds <- function(cds) {
+  apply(exprs(cds), 1, function(y) {
+    fit <- lm(y ~ cds$Pseudotime)
+    s <- summary(fit)
+    p_value <- coef(s)[2, c("Estimate", "Pr(>|t|)")]
+    t(p_value)
+  })
+}
+
+des <- lapply(cds_sets, de_cds)
+
+beta_diff <- des[[1]][1,] - des[[2]][1,]
+pvals <- lapply(des, function(d) d[2,])
+qvals <- lapply(pvals, p.adjust, method = "BH")
+log10qvals <- lapply(qvals, function(q) -log10(q))
+
+qval_diff <- log10qvals[[1]] - log10qvals[[2]]
+```
+
+How does this compare to our PhenoPath fit?
+
+```{r}
+initial_plot <- qplot(beta_diff, pp_fit$m_beta[1,]) +
+  labs(x = expression(beta[LPS]-beta[PAM]~"from linear model"),
+       y = expression("PhenoPath"~beta))
+print( initial_plot )
+```
+
+We notice it's completely off - because one of the pseudotimes is orientated the wrong way. Let's reverse this and repeat
+
+```{r}
+for(i in 1:2) {
+  cds <- cds_sets[[i]]
+  time_numeric <- as.numeric(gsub("h", "", cds$time))
+  if(cor(cds$Pseudotime, time_numeric) < 0) {
+    cds_sets[[i]]$Pseudotime <- max(cds$Pseudotime) - cds$Pseudotime
+  }
+}
+```
+
+Re-do DE analysis:
+
+```{r}
+des2 <- lapply(cds_sets, de_cds)
+
+beta_diff2 <- des2[[1]][1,] - des2[[2]][1,]
+pvals2 <- lapply(des2, function(d) d[2,])
+qvals2 <- lapply(pvals2, p.adjust, method = "BH")
+log10qvals2 <- lapply(qvals2, function(q) -log10(q))
+
+qval_diff2 <- log10qvals2[[1]] - log10qvals2[[2]]
+```
+
+```{r}
+reversed_plot <- qplot(beta_diff2, pp_fit$m_beta[1,]) +
+  labs(x = expression(beta[LPS]-beta[PAM]~"from linear model"),
+       y = expression("PhenoPath"~beta))
+print( reversed_plot )
+```
+
+Save as supplementary figure:
+
+```{r}
+plot_grid(initial_plot, reversed_plot,
+          nrow = 1, labels = 'AUTO')
+
+ggsave("../../figs/supp_split_cov.png", width = 7, height = 3)
+```
+
+

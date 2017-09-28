@@ -60,9 +60,16 @@ shalek_pseudotimes = expand("data/shalek_cor/pseudotime_hvg_{hvg_shalek}_alg_{hv
                             hvg_shalek = hvgs_shalek, 
                             hvg_shalek_algorithm = shalek_algs)
 
-# shalek_interactions = expand("data/shalek_cor/interaction_hvg_{hvg_shalek}_alg_{hvg_shalek_algorithm}.csv",
-#                             hvg_shalek = hvgs_shalek, 
-#                             hvg_shalek_algorithm = phenopath_shalek_algs)
+
+# Init and hyper stuff -----
+
+z_inits = ["pc1", "monocle", "time"]
+elbo_tols = [1e-3, 1e-4, 1e-6]
+tau_alphas = [1e-1, 2, 5]
+ab_beta_ratios = [1, 5, 20]
+
+init_hyper_pseudotimes = expand("data/init_and_hyper/pseudotime_z_init_{z_init}_elbo_tol_{elbo_tol}_tau_alpha_{tau_alpha}_ab_beta_ratio_{ab_beta_ratio}.csv",
+z_init = z_inits, elbo_tol = elbo_tols, tau_alpha = tau_alphas, ab_beta_ratio = ab_beta_ratios)
 
 
 rule all:
@@ -73,15 +80,28 @@ rule all:
         # "data/simulations/roc.csv",
         # "data/simulations/roc_deseq.csv",
         # "data/simulations/roc_phenopath.csv",
-        dex_qvals_mast,
-        "data/simulations/roc_mast.csv",
+        # dex_qvals_mast,
+        # "data/simulations/roc_mast.csv",
         # "data/simulations/roc_monocle.csv",
         # linear_psts,
         # linear_coefs,
         # "figs/mast.png"
         # hvg_pseudotimes,
         # "figs/hvg.png",
-        # shalek_pseudotimes
+        # shalek_pseudotimes,
+        # "figs/supp_shalek_pca.png",
+        init_hyper_pseudotimes
+
+
+# PCA plot
+
+rule make_shalek_pca:
+    input:
+        "data/paper-scesets/sce_shalek_qc.rds"
+    output:
+        "figs/supp_shalek_pca.png"
+    shell:
+        "Rscript analysis/split_covariates/make_shalek_pca.R"
 
 
 # Shalek correlation stuff -----------
@@ -102,6 +122,24 @@ rule fit_shalek_pseudotimes:
     shell:
         "Rscript analysis/shalek_cor/fit_shalek_pseudotime.R --input_sceset {input} --algorithm {wildcards.hvg_shalek_algorithm} --hvg {wildcards.hvg_shalek} --output_csv {output}"
 
+# Init and hyper
+
+rule fit_init_hyper:
+    input:
+        "data/paper-scesets/sce_shalek_qc.rds"
+    output:
+        "data/init_and_hyper/pseudotime_z_init_{z_init}_elbo_tol_{elbo_tol}_tau_alpha_{tau_alpha}_ab_beta_ratio_{ab_beta_ratio}.csv"
+    shell:
+        "Rscript analysis/init_and_hyper/init_and_hyper.R --input_sceset {input} --output_csv {output} --z_init {wildcards.z_init} --elbo_tol {wildcards.elbo_tol} --tau_alpha {wildcards.tau_alpha} --ab_beta_ratio {wildcards.ab_beta_ratio}"
+
+rule fit_init_hyper_control:
+    input:
+        "data/paper-scesets/sce_shalek_qc.rds"
+    output:
+        "data/init_and_hyper/control.csv"
+    shell:
+        "Rscript analysis/init_and_hyper/init_and_hyper.R --input_sceset {input} --output_csv {output} --control TRUE"
+    
 
 # HVG stuff ------------------
 
