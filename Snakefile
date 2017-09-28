@@ -131,7 +131,7 @@ rule fit_init_hyper:
     output:
         "data/init_and_hypers/pseudotime_z_init_{z_init}_elbo_tol_{elbo_tol}_tau_alpha_{tau_alpha}_ab_beta_ratio_{ab_beta_ratio}.csv"
     shell:
-        "Rscript analysis/init_and_hypers/init_and_hyper.R --input_sceset {input} --output_csv {output} --z_init {wildcards.z_init} --elbo_tol {wildcards.elbo_tol} --tau_alpha {wildcards.tau_alpha} --ab_beta_ratio {wildcards.ab_beta_ratio}"
+        "Rscript analysis/init_and_hypers/init_and_hypers.R --input_sceset {input} --output_csv {output} --z_init {wildcards.z_init} --elbo_tol {wildcards.elbo_tol} --tau_alpha {wildcards.tau_alpha} --ab_beta_ratio {wildcards.ab_beta_ratio}"
 
 rule fit_init_hyper_control:
     input:
@@ -139,7 +139,7 @@ rule fit_init_hyper_control:
     output:
         "data/init_and_hypers/control.csv"
     shell:
-        "Rscript analysis/init_and_hypers/init_and_hyper.R --input_sceset {input} --output_csv {output} --control TRUE"
+        "Rscript analysis/init_and_hypers/init_and_hypers.R --input_sceset {input} --output_csv {output} --control TRUE"
     
 
 # HVG stuff ------------------
