@@ -68,7 +68,7 @@ elbo_tols = [1e-3, 1e-4, 1e-6]
 tau_alphas = [1e-1, 2, 5]
 ab_beta_ratios = [1, 5, 20]
 
-init_hyper_pseudotimes = expand("data/init_and_hyper/pseudotime_z_init_{z_init}_elbo_tol_{elbo_tol}_tau_alpha_{tau_alpha}_ab_beta_ratio_{ab_beta_ratio}.csv",
+init_hyper_pseudotimes = expand("data/init_and_hypers/pseudotime_z_init_{z_init}_elbo_tol_{elbo_tol}_tau_alpha_{tau_alpha}_ab_beta_ratio_{ab_beta_ratio}.csv",
 z_init = z_inits, elbo_tol = elbo_tols, tau_alpha = tau_alphas, ab_beta_ratio = ab_beta_ratios)
 
 
@@ -90,7 +90,8 @@ rule all:
         # "figs/hvg.png",
         # shalek_pseudotimes,
         # "figs/supp_shalek_pca.png",
-        init_hyper_pseudotimes
+        init_hyper_pseudotimes,
+        "data/init_and_hypers/control.csv"
 
 
 # PCA plot
@@ -128,17 +129,17 @@ rule fit_init_hyper:
     input:
         "data/paper-scesets/sce_shalek_qc.rds"
     output:
-        "data/init_and_hyper/pseudotime_z_init_{z_init}_elbo_tol_{elbo_tol}_tau_alpha_{tau_alpha}_ab_beta_ratio_{ab_beta_ratio}.csv"
+        "data/init_and_hypers/pseudotime_z_init_{z_init}_elbo_tol_{elbo_tol}_tau_alpha_{tau_alpha}_ab_beta_ratio_{ab_beta_ratio}.csv"
     shell:
-        "Rscript analysis/init_and_hyper/init_and_hyper.R --input_sceset {input} --output_csv {output} --z_init {wildcards.z_init} --elbo_tol {wildcards.elbo_tol} --tau_alpha {wildcards.tau_alpha} --ab_beta_ratio {wildcards.ab_beta_ratio}"
+        "Rscript analysis/init_and_hypers/init_and_hyper.R --input_sceset {input} --output_csv {output} --z_init {wildcards.z_init} --elbo_tol {wildcards.elbo_tol} --tau_alpha {wildcards.tau_alpha} --ab_beta_ratio {wildcards.ab_beta_ratio}"
 
 rule fit_init_hyper_control:
     input:
         "data/paper-scesets/sce_shalek_qc.rds"
     output:
-        "data/init_and_hyper/control.csv"
+        "data/init_and_hypers/control.csv"
     shell:
-        "Rscript analysis/init_and_hyper/init_and_hyper.R --input_sceset {input} --output_csv {output} --control TRUE"
+        "Rscript analysis/init_and_hypers/init_and_hyper.R --input_sceset {input} --output_csv {output} --control TRUE"
     
 
 # HVG stuff ------------------
