@@ -4,6 +4,7 @@ library(phenopath)
 library(monocle)
 library(scater)
 library(tidyverse)
+library(matrixStats)
 
 fit_monocle2 <- function(exprs_mat) {
   cds <- newCellDataSet(exprs_mat)
@@ -22,14 +23,19 @@ init_and_hypers <- function(input_sceset = "sce.rds",
                             z_init = "pc1",
                             elbo_tol = 1e-3,
                             tau_alpha = 1,
-                            ab_beta_ratio) {
+                            ab_beta_ratio = 1,
+                            hvg = 1000) {
   sce <- readRDS(input_sceset)
   
-  time_numeric <- as.numeric(gsub("h", "", sce$time))
+  gene_vars <- rowVars(exprs(sce))
+  var_cutoff <- sort(gene_vars, decreasing = TRUE)[hvg]
+  sce_hvg <- sce[gene_vars >= var_cutoff, ]
+  
+  time_numeric <- as.numeric(gsub("h", "", sce_hvg$time))
   
   pst_init <- switch(z_init,
                      pc1 = 1,
-                     monocle = scale_vec(fit_monocle2(exprs(sce))),
+                     monocle = scale_vec(fit_monocle2(exprs(sce_hvg))),
                      time = scale_vec(time_numeric))
   
   a_beta = ab_beta_ratio^2 / 10
@@ -37,12 +43,12 @@ init_and_hypers <- function(input_sceset = "sce.rds",
   
   fit <- output_df <- NULL
   if(control) {
-    fit <- phenopath(sce, sce$x)
+    fit <- phenopath(sce_hvg, sce_hvg$x)
     output_df <- data_frame(
       pseudotime = trajectory(fit)
     )
   } else {
-    fit <- phenopath(sce, sce$x,
+    fit <- phenopath(sce_hvg, sce_hvg$x,
                      elbo_tol = elbo_tol,
                      tau_alpha = tau_alpha,
                      z_init = pst_init,
