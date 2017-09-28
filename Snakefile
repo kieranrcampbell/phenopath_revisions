@@ -90,8 +90,9 @@ rule all:
         # "figs/hvg.png",
         # shalek_pseudotimes,
         # "figs/supp_shalek_pca.png",
-        init_hyper_pseudotimes,
-        "data/init_and_hypers/control.csv"
+        #init_hyper_pseudotimes,
+        #"data/init_and_hypers/control.csv"
+        "figs/supp_robustness_to_init_hyper.png"
 
 
 # PCA plot
@@ -140,6 +141,15 @@ rule fit_init_hyper_control:
         "data/init_and_hypers/control.csv"
     shell:
         "Rscript analysis/init_and_hypers/init_and_hypers.R --input_sceset {input} --output_csv {output} --control TRUE"
+
+rule init_hyper_graph:
+    input:
+        init_hyper_pseudotimes
+    output:
+        "figs/supp_robustness_to_init_hyper.png"
+    shell: 
+        "Rscript analysis/init_and_hypers/graph_init_hypers.R"
+
     
 
 # HVG stuff ------------------
