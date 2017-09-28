@@ -17,6 +17,11 @@ fit_monocle2 <- function(exprs_mat) {
 
 scale_vec <- function(x) (x - mean(x)) / sd(x)
 
+get_noisy_pc1 <- function(sce) {
+  pc1 <- prcomp(t(exprs(sce)))$x[,1]
+  pc1 + rnorm(length(pc1))
+}
+
 init_and_hypers <- function(input_sceset = "sce.rds",
                             output_csv = "output.csv",
                             control = FALSE,
@@ -34,7 +39,7 @@ init_and_hypers <- function(input_sceset = "sce.rds",
   time_numeric <- as.numeric(gsub("h", "", sce_hvg$time))
   
   pst_init <- switch(z_init,
-                     pc1 = 1,
+                     pc1 = get_noisy_pc1(sce_hvg),
                      monocle = scale_vec(fit_monocle2(exprs(sce_hvg))),
                      time = scale_vec(time_numeric))
   

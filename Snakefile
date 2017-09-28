@@ -90,9 +90,9 @@ rule all:
         # "figs/hvg.png",
         # shalek_pseudotimes,
         # "figs/supp_shalek_pca.png",
-        #init_hyper_pseudotimes,
+        init_hyper_pseudotimes
         #"data/init_and_hypers/control.csv"
-        "figs/supp_robustness_to_init_hyper.png"
+        #"figs/supp_robustness_to_init_hyper.png"
 
 
 # PCA plot
