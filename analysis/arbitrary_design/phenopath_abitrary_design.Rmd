@@ -19,6 +19,9 @@ First load some useful libraries:
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(viridis))
 suppressPackageStartupMessages(library(phenopath))
+suppressPackageStartupMessages(library(cowplot))
+
+theme_set(theme_cowplot(font_size = 11))
 
 knitr::opts_chunk$set(fig.height = 4, fig.width = 6, fig.align = 'center')
 
@@ -75,13 +78,17 @@ pca_df <- prcomp(Y)$x[,1:2] %>%
   as_data_frame() %>% 
   mutate(pst, x)
 
-ggplot(pca_df, aes(x = PC1, y = PC2, color = pst)) +
+by_pseudotime <- ggplot(pca_df, aes(x = PC1, y = PC2, color = pst)) +
   geom_point() +
-  scale_colour_viridis()
+  scale_colour_viridis(name = "Pseudotime")
 
-ggplot(pca_df, aes(x = PC1, y = PC2, color = factor(x))) +
+by_x <- ggplot(pca_df, aes(x = PC1, y = PC2, color = x)) +
   geom_point() +
   scale_colour_brewer(palette = "Set1")
+
+plot_grid(by_pseudotime, by_x, labels = "AUTO", nrow = 1)
+
+ggsave("../../figs/supp_arbitrary_pca.png", width = 7, height = 3)
 ```
 
 # Inference with PhenoPath
@@ -106,7 +113,9 @@ First let's compare the inferred pseudotime against the true:
 
 ```{r}
 qplot(pst, trajectory(fit)) +
-  labs(x = "True", y = "PhenoPath")
+  labs(x = "True pseudotime", y = "PhenoPath z")
+
+true_vs_z <- last_plot()
 ```
 
 Next let's get the matrix of fitted coefficients:
@@ -119,15 +128,29 @@ head(beta_fit)
 We can compare these to the true values:
 
 ```{r, fig.height = 3}
+sig_ints <- significant_interactions(fit, 3)
+
 dfs <- lapply(1:3, function(i) {
-  data_frame(true = beta[,i], inferred = beta_fit[,i], x = as.character(i))
+  data_frame(true = beta[,i], inferred = beta_fit[,i], x = as.character(i),
+             significant = sig_ints[,i])
 })
 df <- bind_rows(dfs)
 
-ggplot(df, aes(x = true, y = inferred)) +
+ggplot(df, aes(x = true, y = inferred, color = significant)) +
   geom_point() +
-  facet_wrap(~ x)
+  facet_wrap(~ x) +
+  scale_colour_brewer(name = "PhenoPath\nsignificant", palette = "Paired") +
+  labs(x = expression(beta~"true"), y = expression(beta~"PhenoPath estimate")) +
+  theme(legend.position = "top")
+
+beta_plot <- last_plot()
 ```
+
+```{r}
+plot_grid(true_vs_z, beta_plot, ncol = 1, labels = "AUTO")
+ggsave("../../figs/supp_arbitrary_results.png", width = 5, height = 6)
+```
+
 
 Finally, we can look at the significant interactions:
 

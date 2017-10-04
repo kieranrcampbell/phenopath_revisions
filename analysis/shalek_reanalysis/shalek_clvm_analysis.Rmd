@@ -42,7 +42,7 @@ scale_vec <- function(x) (x - mean(x)) / sd(x)
 ```{r}
 sce <- readRDS("../../data/paper-scesets/sce_shalek_qc.rds")
 gene_vars <- rowVars(exprs(sce))
-var_cutoff <- sort(gene_vars, decreasing = TRUE)[6500]
+var_cutoff <- sort(gene_vars, decreasing = TRUE)[7500]
 sce_hvg <- sce[gene_vars >= var_cutoff, ]
 
 is_na_mgi_symbol <- is.na(fData(sce_hvg)$mgi_symbol)
@@ -156,7 +156,7 @@ tmap <- pcavi$m_z
 
 top_genes <- dplyr::filter(df_beta, is_sig) %>% 
   dplyr::arrange(desc(abs(beta))) %>% 
-  extract2("gene") %>% head(n=10)
+  extract2("gene") %>% head(n=20)
 ```
 
 Check z loosely corresponds to time:
@@ -333,10 +333,10 @@ write_csv(df_beta, "../../data/shalek/shalek_interactions.csv")
 ```{r more-vis}
 textinfo <- frame_data(
   ~x, ~y, ~label,
-  1, 0.2, "Gene upregulated along pseudotime\nLPS increases upregulation",
-  1, -0.2, "Gene upregulated along pseudotime\nPAM increases upregulation",
-  -1.1, 0.2, "Gene downregulated along pseudotime\nPAM increases downregulation",
-  -1.1, -0.2, "Gene downregulated along pseudotime\nLPS increases downregulation"
+  1.1, 0.2, "Gene upregulated along pseudotime\nLPS increases upregulation",
+  1.1, -0.2, "Gene upregulated along pseudotime\nPAM increases upregulation",
+  -1.2, 0.2, "Gene downregulated along pseudotime\nPAM increases downregulation",
+  -1.2, -0.2, "Gene downregulated along pseudotime\nLPS increases downregulation"
 )
 
 cols <- RColorBrewer::brewer.pal(3, "Set2")
@@ -455,13 +455,21 @@ bottom_left <- plot_grid(bottom_top_left, goplot,
                          label_size = lsize)
 
 bottom_grid <- plot_grid(bottom_left, gene_plot, nrow = 1, # labels = c("", "G"),
-                         label_size = lsize, rel_widths = c(4,5))
+                         label_size = lsize, rel_widths = c(5.5,5))
 
 shalek_plot <- plot_grid(lplot, bottom_grid, ncol = 1, rel_heights = c(2,1.5), # labels = c("C",""),
           label_size = lsize)
 
-ggsave("../../figs/shalek.png", shalek_plot, width = 9, height = 8)
+ggsave("../../figs/shalek.png", shalek_plot, width = 8, height = 9)
 ```
+
+Need a supplementary Mef2c figure
+
+```{r}
+mef2c_plot <- make_gene_plot("Mef2c")
+ggsave("../../figs/supp_mef2c.png", width = 7, height = 3)
+```
+
 
 # Antiviral pathway score
 
@@ -482,8 +490,10 @@ sce_av <- sce_hvg[fData(sce_hvg)$anti_viral, ]
 scaled_exprs <- scale(t(exprs(sce_av)))
 
 qplot(pcavi$m_z, rowMeans(scaled_exprs), color = xs) +
-  labs(x = "Pseudotime", y = "Kieran's special\nantiviral score") +
+  labs(x = "Pseudotime", y = "Antiviral score") +
   scale_colour_brewer(palette = "Set1", name = "Stimulant")
+
+ggsave("../../figs/supp_shalek_antiviral_score.png", width = 6, height = 4)
 ```
 
 

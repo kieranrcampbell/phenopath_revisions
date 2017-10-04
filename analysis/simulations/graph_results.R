@@ -114,8 +114,6 @@ graph_auc <- function(dfg, de_alg, de_str, noi) {
       ylim(lower, upper)
 }
 
-noise <- "low"
-graph_auc(dfg, "mast", "MAST", noise)
 
 auc_plots <- lapply(c("low", "high"), function(noise) {
   voom_plot <- graph_auc(dfg, "limma", "Limma Voom", noise)
@@ -127,14 +125,16 @@ auc_plots <- lapply(c("low", "high"), function(noise) {
 
 names(auc_plots) <- c('low', 'high')
 
-auc_plots[['high']]
 
-ggsave("figs/auc.png", width = 8, height = 11)
-
-
+ggsave("figs/supp_auc_low.png", auc_plots[['low']], width = 8, height = 11)
+ggsave("figs/supp_auc_high.png", auc_plots[['high']], width = 8, height = 11)
 
 
-voom_paper_plot <- ggplot(filter(dfg, DE_alg != "deseq2", N == 200), aes(x = as.factor(100 * p), y = mean_auc,
+
+
+voom_paper_plot <- 
+  filter(dfg, DE_alg %in% c("limma", "phenopath"), noise == "low", N == 200) %>% 
+  ggplot(aes(x = as.factor(100 * p), y = mean_auc,
                                             color = alg, group = alg)) + 
   geom_errorbar(aes(ymin = lower, ymax = upper), width = 0.1) +
   geom_line(size = 1.5) + 
@@ -148,17 +148,14 @@ voom_paper_plot <- ggplot(filter(dfg, DE_alg != "deseq2", N == 200), aes(x = as.
   theme(legend.position = "none")
 
 
-ggplot(aucs, aes(x = factor(p), y = auc, fill = alg)) +
-  geom_boxplot() + facet_grid(N ~ DE_alg)
-
 # Paper figure ------------------------------------------------------------
 
 sim_example <- readRDS("figs/simulation_example.rds")
 
 bottom_grid <- plot_grid(pst_plot, voom_paper_plot, rel_widths = c(4,3),
-                         labels = c("B", "C"), scale = 0.95)
+                         labels = c("C", "D"), scale = 0.95)
 
-plot_grid(plot_grid(sim_example, scale = 0.95), bottom_grid, nrow = 2, labels = c("A", NULL),
-          rel_heights = c(1.2,2))
+plot_grid(plot_grid(sim_example, scale = 0.95), NULL, bottom_grid, ncol = 1, labels = c("A", "B", NULL),
+          rel_heights = c(1.2,2, 2))
 
-ggsave("figs/sim.png", width = 10, height = 4.5)
+ggsave("figs/sim.png", width = 10, height = 7)

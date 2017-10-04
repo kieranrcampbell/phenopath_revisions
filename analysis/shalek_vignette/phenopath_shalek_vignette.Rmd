@@ -1,0 +1,360 @@
+---
+title: "Covariate-adjusted pseudotime analysis of Shalek et al. (2014) using PhenoPath"
+author: "Kieran R Campbell"
+date: "October 2017"
+output: 
+  BiocStyle::html_document
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}  
+bibliography: bibliography.bib
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,
+                      cache = TRUE,
+                      fig.width = 5, fig.height = 3.5)
+```
+
+# Introduction
+
+This vignette provides an end-to-end example on the @Shalek2014-cg single-cell RNA-seq dataset of time-course dendritic cells under LPS and PAM stimulation. In it we will fit pseudotimes using [PhenoPath](http://www.github.com/kieranrcampbell/phenopath) allowing each gene to vary differently over (pseudo-)time depending on the stimulant applied.
+
+# Setup and data retrieval
+
+First, install the latest version of PhenoPath from github. This can be achieved via the devtools package:
+
+```{r, eval = FALSE}
+install.packages("devtools") # If not already installed
+install_github("kieranrcampbell/phenopath")
+```
+
+We also require the `scater` and `MultiAssayExperiment` packages that can be installed via 
+
+```{r, eval = FALSE}
+## try http:// if https:// URLs are not supported
+source("https://bioconductor.org/biocLite.R")
+biocLite(c("scater", "MultiAssayExperiment"))
+```
+
+We will use a recent re-quantification of the original dataset as part of the [conquer](http://imlspenticton.uzh.ch:3838/conquer/) project (@soneson2017bias) that uses Salmon (@patro2017salmon) for gene expression quantification. This can be downloaded directly from [here](http://imlspenticton.uzh.ch/robinson_lab/conquer/data-mae/GSE48968-GPL13112.rds), or using a command-line utility such as via
+
+```{eval = FALSE}
+wget http://imlspenticton.uzh.ch/robinson_lab/conquer/data-mae/GSE48968-GPL13112.rds
+```
+
+For the purposes of this tutorial we assume the raw data file (`GSE48968-GPL13112.rds`) is in the current working directory.
+
+# Getting the data ready for PhenoPath
+
+## Converting the data into an SCESet
+
+We will now parse the data into a form suitable for the `scater` package, an excellent package for handling single-cell gene expression data. First, read in the `MultiAssayExperiment`:
+
+```{r, cache = FALSE, eval = FALSE}
+library(MultiAssayExperiment)
+mae <- readRDS("GSE48968-GPL13112.rds")
+```
+
+Next we're going to retrieve counts, transcript-per-million (TPM) values and the phenotypic (cell-specific) data and convert it into an `SCESet` used by scater. We'll set the default "expression" values to $\log_2(\text{TPM} + 1)$.
+
+```{r}
+suppressPackageStartupMessages(library(scater))
+cts <- assays(experiments(mae)[["gene"]])[["count_lstpm"]]
+tpms <- assays(experiments(mae)[["gene"]])[["TPM"]]
+phn <- colData(mae)
+
+sce <- newSCESet(countData = cts, 
+                  phenoData = new("AnnotatedDataFrame", data = as.data.frame(phn)))
+tpm(sce) <- tpms
+exprs(sce) <- log2(tpm(sce) + 1)
+```
+
+We're only interested in cells exposed to LPS or PAM, so we parse these from the `description` column of the `SCESet` and subset the data accordingly:
+
+```{r}
+is_lps_pam <- grepl("LPS|PAM", sce$description)
+sce <- sce[, is_lps_pam]
+```
+
+Finally, we need to parse the capture time and stimulant from the `description` column of the `SCESet` and add them as new columns:
+
+```{r}
+split <- strsplit(as.character(sce$description), "_", fixed = TRUE)
+stimulant <- sapply(split, `[`, 1)
+time <- sapply(split, `[`, 2)
+sce$stimulant <- stimulant
+sce$time <- time
+```
+
+Finally, let's get MGI symbols for the genes so we actually know what they are:
+
+```{r}
+suppressPackageStartupMessages(library(biomaRt))
+ensembl_gene_ids <- sapply(strsplit(featureNames(sce), ".", fixed = TRUE), `[`, 1)
+mart <- useMart("ensembl", dataset = "mmusculus_gene_ensembl")
+bm <- getBM(attributes = c("ensembl_gene_id", "mgi_symbol"),
+            filters = "ensembl_gene_id",
+            values = ensembl_gene_ids,
+            mart = mart)
+
+fData(sce)$mgi_symbol <- rep(NA, nrow(sce))
+
+mm2 <- match(bm$ensembl_gene_id, ensembl_gene_ids)
+fData(sce)$mgi_symbol[mm2] <- bm$mgi_symbol
+```
+
+
+
+## Quality control and removal of low-quality cells
+
+The next stage is quality control and removal of low-quality cells. We begin by calling the scater function `calculateQCMetrics`:
+
+```{r}
+sce <- calculateQCMetrics(sce)
+```
+
+We can plot the total number of genes expressed (`total_features`) against the total number of counts to each cell:
+
+```{r}
+plotPhenoData(sce, aes(x = total_counts, y = total_features))
+```
+
+We see there are quite a few cells with low counts and features. We'll remove these via threholds:
+
+```{r}
+sce$to_keep <- sce$total_counts > 5e5 & sce$total_features > 5e3
+plotPhenoData(sce, aes(x = total_counts, y = total_features, color = to_keep)) +
+  labs(subtitle = "QC pass: total_features > 5000 and total_counts > 50000")
+```
+
+and subset to the post-qc'd cells:
+
+```{r}
+sce_qc <- sce[, sce$to_keep]
+```
+
+In the original publication (@Shalek2014-cg) the author identified a subset of "cluster-disrupted" cells that were removed. These were identified as having low _Lyz1_ expression and high _Serpinb6b_ expression. Let's have a look at the co-expression of these two:
+
+```{r}
+Lyz1_index <- grep("Lyz1", fData(sce_qc)$mgi_symbol)
+SerpinB6b_index <- grep("SerpinB6b", fData(sce_qc)$mgi_symbol, ignore.case = TRUE)
+
+Lyz1 <- exprs(sce_qc)[Lyz1_index,]
+Serpinb6b <- exprs(sce_qc)[SerpinB6b_index,]
+
+qplot(Lyz1, Serpinb6b)
+```
+
+Accepting cells with _Lyz1_ expression greater than 0 and _Serpbinb6b_ expression less than 2.5 seems reasonable. Let's see how this would look:
+
+```{r}
+Serpinb6b_threshold <- 2.5
+Lyz1_threshold <- 0
+
+to_keep <- Lyz1 > Lyz1_threshold & Serpinb6b < Serpinb6b_threshold
+
+qplot(Lyz1, Serpinb6b, color = to_keep) +
+  geom_vline(xintercept = Lyz1_threshold, linetype = 2) +
+  geom_hline(yintercept = Serpinb6b_threshold, linetype = 2) +
+  scale_color_brewer(palette = "Dark2") +
+  labs(subtitle = "Non-cluster-disrupted: Serpinb6b > 2.5 and Lyz1 > 0")
+```
+
+Let's now subset the data appropriately: 
+
+```{r}
+sce_qc2 <- sce_qc[, to_keep]
+```
+
+Finally, technical variation can have a large effect on single-cell RNA-seq data. Unfortunately we don't know the experimental design, but one of the key signs of batch effects is large variation in the number of genes expressed across cells (@hicks2017missing). Let's see how this affects the principal components of the data:
+
+```{r, fig.width = 5, fig.height = 4}
+plotQC(sce_qc2, type = 'find', var = 'total_features', ntop = 2e3)
+```
+
+We see this has a huge effect on the overall variation, contributing to the first principal component. We can remove this effect using the handy `normaliseExprs` function in `scater`:
+
+```{r}
+m <- model.matrix(~ sce_qc2$total_features)
+sce_qc2 <- normaliseExprs(sce_qc2, design = m)
+exprs(sce_qc2) <- norm_exprs(sce_qc2)
+```
+
+Let's tidy up all the `SCESets` we have lying around before we're ready for the PhenoPath analysis:
+
+```{r}
+sce <- sce_qc2
+rm(sce_qc, sce_qc2)
+print(sce)
+```
+
+# Covariate-adjusted pseudotime analysis with PhenoPath
+
+## Preparing the SCESet for input to PhenoPath
+
+It's an open question in the field precisely what genes to use in any pseudotime fit. In this work we opt for the most variable genes (in $log$-expression space, so we don't have to worry too much about the mean-variance relationship - for a more refined approach, see the [variance stabilising transformation](https://www.google.co.uk/url?sa=t&rct=j&q=&esrc=s&source=web&cd=2&cad=rja&uact=8&ved=0ahUKEwiFhrLkxtLWAhVmKMAKHSpUAVwQFggtMAE&url=http%3A%2F%2Fwww.bioconductor.org%2Fpackages%2F%2F2.13%2Fbioc%2Fvignettes%2FDESeq%2Finst%2Fdoc%2Fvst.pdf&usg=AOvVaw2QK98-MzO76UYR7lyEFuGJ) that's part of DESeq2). 
+
+Here we'll create a new `SCESet` that consists of the 7500 most variable genes:
+
+```{r}
+suppressPackageStartupMessages(library(matrixStats))
+gene_vars <- rowVars(exprs(sce))
+var_cutoff <- sort(gene_vars, decreasing = TRUE)[7500]
+sce_hvg <- sce[gene_vars >= var_cutoff, ]
+```
+
+We just have a couple of more things to tidy up before we can fit the model with PhenoPath:
+
+1. If any MGI symbol is `NA`, set it to the corresponding ensembl gene ID
+2. For some reason the gene _Rasgefb1_ that's important to our analysis isn't annotated, so let's fix that:
+
+```{r}
+is_na_mgi_symbol <- is.na(fData(sce_hvg)$mgi_symbol)
+fData(sce_hvg)$mgi_symbol[is_na_mgi_symbol] <- featureNames(sce_hvg)[is_na_mgi_symbol]
+
+is_Rasgefb1 <- match("ENSMUSG00000029333.14", featureNames(sce_hvg))
+fData(sce_hvg)$mgi_symbol[is_Rasgefb1] <- "Rasgefb1"
+```
+
+## Inference with PhenoPath
+
+First we must decide how to pass in the covariate information (ie the stimulant applied) to the software as the $x$ values. Here we will give cells exposed to LPS a value of 1 and cells exposed to PAM a value of -1. This means the overall _pathway loading_ $\lambda$ is the average change for LPS and PAM cells, while if the $\beta$ parameter is positive it means the gene is more upregulated over pseudotime under LPS and if $\beta$ is negative it means the gene is more upregulated under PAM[^1].
+
+[^1]: Instead we could encode LPS to 1 and PAM to 0, in which case the _pathway loading_ $\lambda$ would be the change under PAM and $\lambda + \beta$ the change under LPS stimulation.
+
+In `R` we construct this via
+
+```{r}
+x <- 2 * (sce_hvg$stimulant == "LPS") - 1
+```
+
+By default PhenoPath initialises to the first principal component of the data. However, variational inference is non-convex and we can easily end up in a local maximum in which pseudotime essentially runs backwards in time. Simply for convenience sake, we'll initialise the latent space with the first principal component "flipped" so that the pseudotimes will run forwards in time[^2]:
+
+[^2]: Since all pseudotime trajectories are essentially equivalent up to a parity transformation, this won't affect any of the benchmarking with existing software.
+
+```{r}
+scale_vec <- function(x) (x - mean(x)) / sd(x)
+pc1 <- prcomp(t(exprs(sce_hvg)), scale = TRUE)$x[,1]
+pc1 <- scale_vec(pc1)
+time_numeric <- as.numeric(gsub("h", "", sce$time))
+pc1 <- pc1 * sign(cor(pc1, time_numeric))
+```
+
+And we're all set! Model fitting is as easy as a call to the `phenopath` function:
+
+```{r}
+library(phenopath)
+fit <- phenopath(sce_hvg, x, z_init = pc1)
+
+```
+
+## Monitoring convergence
+
+By default the model is considered converged when the change in the ELBO falls below $10^{-5}$%. The user should plot the elbo using the `plot_elbo` command to ensure the lower bound as sufficiently converged:
+
+```{r}
+plot_elbo(fit)
+```
+
+
+# Interpreting the results
+
+## Pseudotime recapitulates capture time
+
+First, let's check that the pseudotimes roughly correspond to the true capture times. Note that we can get maximum a-posteriori (MAP) estimates of the pseudotimes using the `trajectory` function.
+
+```{r}
+suppressPackageStartupMessages(library(dplyr))
+suppressPackageStartupMessages(library(ggplot2))
+zdf <- data_frame(z = trajectory(fit), time = sce$time)
+
+ggplot(zdf, aes(x = time, y = z, fill = time)) + 
+  geom_violin(alpha = 0.8) +
+  theme(legend.position = "none") + 
+  scale_fill_brewer(palette = "Set1") +
+  xlab("Capture time") +
+  ylab("Pathway score\n(pseudotime)") +
+  theme(axis.text = element_text(size = 8),
+        axis.title = element_text(size = 9),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10)) 
+```
+
+## Identifying significant interactions
+
+We can extract the interaction parameters using the `interactions` function. This returns a `data_frame` with the following entries:
+
+* `feature` The feature (usually gene)
+* `covariate` The covariate, specified from the order originally supplied to the call to `phenopath`
+* `interaction_effect_size` The effect size of the interaction ($\beta$ from the statistical model)
+* `significant` Boolean for whether the interaction effect is significantly different from 0
+* `chi` The precision of the ARD prior on $\beta$
+* `pathway_loading` The pathway loading $\lambda$, showing the overall effect for each gene marginalised over the covariate
+
+Let's have a look at this for our dataset. We'll swap out the ensembl gene IDs with the MGI symbols to make things a little easier to read:
+
+```{r}
+ints <- interactions(fit)
+ints$feature <- fData(sce_hvg)$mgi_symbol
+ints[,1:3]
+```
+
+```{r}
+ints[,4:6]
+```
+
+A nice way to visualise this is to plot the posterior ARD variances ($1 / \chi$) against the posterior interaction effect sizes ($\beta$), colouring them by which are found to be significant and annotating the top few genes:
+
+```{r, fig.width = 6, fig.height = 4}
+library(ggrepel)
+chi_cutoff <- sort(ints$chi)[10]
+
+ggplot(ints, aes(x = interaction_effect_size, y = 1 / chi, 
+                 color = significant_interaction)) +
+  geom_point() +
+  geom_text_repel(data = dplyr::filter(ints, chi < chi_cutoff), 
+                  aes(label = feature)) +
+  scale_colour_brewer(palette = "Set1")
+```
+
+We can also plot the "landscape" of interactions, where we plot the interaction effect size against the pathway score. The further up the $y$-axis a gene is, the more it is upregulated under LPS rather than PAM (and vice-versa), while the further along the $x$-axis a gene is, the more it is upregulated over pseudotime regardless of stimulant applied.
+
+```{r, fig.width = 7, fig.height = 4}
+ggplot(ints, aes(x = pathway_loading, y = interaction_effect_size, 
+                 color = significant_interaction)) +
+  geom_point() +
+  geom_text_repel(data = dplyr::filter(ints, chi < chi_cutoff), 
+                  aes(label = feature), size = 5) +
+  scale_colour_brewer(palette = "Set1")  +
+  theme(axis.text = element_text(size = 11),
+        axis.title = element_text(size = 12),
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 11)) 
+```
+
+The _Tnf_ gene has the largest interaction effect size - let's plot it over pseudotime coloured by the stimulant applied:
+
+```{r, fig.width = 7}
+tnf_index <- grep("^Tnf$", fData(sce_hvg)$mgi_symbol)
+sce_hvg$phenopath_pseudotime <- trajectory(fit)
+
+plotExpression(sce_hvg, 
+               features = tnf_index, 
+               x = "phenopath_pseudotime",
+               colour_by = "stimulant",
+               show_violin = FALSE)
+```
+
+We see that under PAM it's upregulated, while under LPS it's downregulated.
+
+# Technical
+
+```{r}
+sessionInfo()
+saveRDS(sce_hvg, "~/Desktop/delete-me.rds")
+```
+
+
+# References

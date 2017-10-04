@@ -28,7 +28,7 @@ cor_df$elbo_tol_fct <- factor(cor_df$elbo_tol,
 
 cor_df$z_init_chr <- plyr::mapvalues(cor_df$z_init,
                                      from = c("monocle", "pc1", "time"),
-                                     to = c("Monocle 2", "PC1", "Capture times\n(scaled)"))
+                                     to = c("Monocle 2", "PC1+noise", "Capture times\n(scaled)"))
 
 ## The graphs
 
@@ -50,4 +50,4 @@ plt4 <- ggplot(cor_df, aes(x = factor(ab_beta_ratio), y = abs(cor_to_control))) 
 
 plot_grid(plt1, plt2, plt3, plt4, labels = 'AUTO')
 
-ggsave("figs/supp_robustness_to_init_hyper.png", width = 7, height = 5.5)
+ggsave("figs/supp_robustness_to_init_hyper.png", width = 8, height = 6)
