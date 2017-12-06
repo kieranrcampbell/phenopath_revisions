@@ -22,6 +22,7 @@ library(edgeR)
 library(RColorBrewer)
 library(goseq)
 library(phenopath)
+library(ggbeeswarm)
 
 
 
@@ -41,15 +42,16 @@ scale_vec <- function(x) (x - mean(x)) / sd(x)
 
 ```{r}
 sce <- readRDS("../../data/paper-scesets/sce_shalek_qc.rds")
+sce <- updateSCESet(sce)
 gene_vars <- rowVars(exprs(sce))
 var_cutoff <- sort(gene_vars, decreasing = TRUE)[7500]
 sce_hvg <- sce[gene_vars >= var_cutoff, ]
 
-is_na_mgi_symbol <- is.na(fData(sce_hvg)$mgi_symbol)
-fData(sce_hvg)$mgi_symbol[is_na_mgi_symbol] <- featureNames(sce_hvg)[is_na_mgi_symbol]
+is_na_mgi_symbol <- is.na(rowData(sce_hvg)$mgi_symbol)
+rowData(sce_hvg)$mgi_symbol[is_na_mgi_symbol] <- rownames(sce_hvg)[is_na_mgi_symbol]
 
-is_Rasgefb1 <- match("ENSMUSG00000029333.14", featureNames(sce_hvg))
-fData(sce_hvg)$mgi_symbol[is_Rasgefb1] <- "Rasgefb1"
+is_Rasgefb1 <- match("ENSMUSG00000029333.14", rownames(sce_hvg))
+rowData(sce_hvg)$mgi_symbol[is_Rasgefb1] <- "Rasgefb1"
 ```
 
 And perform inference:
@@ -61,9 +63,17 @@ time_numeric <- as.numeric(gsub("h", "", sce$time))
 pc1 <- pc1 * sign(cor(pc1, time_numeric))
 x <- 2 * (sce_hvg$stimulant == "LPS") - 1
 
-pcavi <- phenopath(sce_hvg, x, z_init = pc1)
+pcavi <- phenopath(sce_hvg, x, z_init = pc1, sce_assay = "norm_exprs")
 ```
 
+Save for decision analysis:
+
+```{r}
+dec_df <- data_frame(gene = rownames(sce_hvg),
+                     m = pcavi$m_beta[1,],
+                     s = pcavi$s_beta[1,])
+write_csv(dec_df, "../../data/shalek/dec_df_new.csv")
+```
 
 
 Plot the elbo:
@@ -96,17 +106,21 @@ qplot(scale_vec(pc1), pcavi$m_z, color = factor(xs)) +
 
 ```{r beta-df}
 
-fData(sce_hvg)$ensembl_gene_id <- sapply(strsplit(featureNames(sce_hvg), ".", fixed = TRUE), `[`, 1)
+rowData(sce_hvg)$ensembl_gene_id <- sapply(strsplit(rownames(sce_hvg), ".", fixed = TRUE), `[`, 1)
 
 df_beta <- data_frame(
   lambda = pcavi$m_lambda,
   beta = pcavi$m_beta[1,],
   chi = pcavi$chi_exp[1,],
   alpha = pcavi$m_alpha[1,],
-  gene = fData(sce_hvg)$mgi_symbol, #stringr::str_to_title(featureNames(sce_hvg)),
-  ensembl_gene_id = fData(sce_hvg)$ensembl_gene_id,
+  pos_sd = sqrt(pcavi$s_beta[1,]),
+  gene = rowData(sce_hvg)$mgi_symbol, #stringr::str_to_title(rownames(sce_hvg)),
+  ensembl_gene_id = rowData(sce_hvg)$ensembl_gene_id,
   is_sig = significant_interactions(pcavi, n = 3)#[,1]
 )
+
+
+write_csv(df_beta, "../../data/shalek/df_gene_shalek.csv")
 
 
 df_beta$is_sig_graph <- 
@@ -167,10 +181,10 @@ zdf <- data_frame(z = pcavi$m_z, time = sce$time, stimulant = xs)
 ggplot(zdf, aes(x = time, y = z, fill = time)) + 
   geom_violin(alpha = 0.8) +
   theme(legend.position = "none") + 
-  scale_fill_brewer(palette = "Set1") +
+  scale_fill_brewer(palette = "Set3") +
   # scale_fill_brewer(palette = "Set1") +
   xlab("Capture time") +
-  ylab("Pathway score\n(pseudotime)") +
+  ylab("Pseudotime)") +
   theme(axis.text = element_text(size = 8),
         axis.title = element_text(size = 9),
         legend.title = element_text(size = 11),
@@ -185,10 +199,10 @@ time_plot <- last_plot()
 ```{r mlh1}
 
 make_gene_plot <- function(genes) {
-  inds <- match(genes, fData(sce_hvg)$mgi_symbol)
+  inds <- match(genes, rowData(sce_hvg)$mgi_symbol)
   
   df <- t(exprs(sce_hvg))[, inds, drop=FALSE] 
-  colnames(df) <- genes #featureNames(sce_hvg)[inds]
+  colnames(df) <- genes #rownames(sce_hvg)[inds]
   
   df <- as_data_frame(df) %>% 
     dplyr::mutate(phenopath = pcavi$m_z, x = as.character(xs)) %>% 
@@ -200,21 +214,23 @@ make_gene_plot <- function(genes) {
   
   ggplot(df, aes(x = phenopath, y = expression, fill = x, color = x)) + 
     geom_point(data = df_nox, color = "grey80", fill = "grey80") +
-    geom_point(shape = 21, color = 'grey30', alpha = 0.5) +
+    geom_point(shape = 21, color = 'grey30', alpha = 0.3) +
     facet_grid(gene ~ x, scales = "free") + 
     scale_fill_brewer(palette = "Set1", name = "MSI") +
     scale_color_brewer(palette = "Set1", name = "MSI") +
-    theme(legend.position = "none", strip.text = element_text(size = 10, face = "bold"),
-          strip.text.y = element_text(size = 8),
+    theme(legend.position = "none", 
+          strip.text = element_text(face = "bold"),
+          strip.text.x = element_text(size = 10, margin = margin(.1, 0, .1, 0, "cm")),
+          strip.text.y = element_text(size = 8, margin = margin(0, .1, 0, .1, "cm")),
           strip.background = element_rect(colour = "black", fill = "grey95", 
-                                          size = 0.5, linetype = 1)) +
+                                          size = 0.3, linetype = 1)) +
   theme(axis.text = element_text(size = 9),
         axis.text.y = element_text(size = 8),
         axis.title = element_text(size = 10)) +
     stat_smooth(se = FALSE, method = "lm", size = 1.5, formula = y ~ ns(x,3),
                 color = 'grey30') +
     ylab(expression("Normalised expression")) + 
-    xlab("Pathway score (pseudotime)")
+    xlab("Pseudotime")
 }
 
 # genes <- c("Ifi204", "Ms4a6c", "Procr")
@@ -222,13 +238,13 @@ genes <- top_genes[1:4]
 
 make_gene_plot(genes)
 
-gene_plot <- last_plot()
+gene_plot <- plot_over_pseudotime <- last_plot()
 ```
 
 Now do the same for original time series:
 
 ```{r}
-inds <- match(genes, fData(sce_hvg)$mgi_symbol)
+inds <- match(genes, rowData(sce_hvg)$mgi_symbol)
 
 df <- t(exprs(sce_hvg))[, inds, drop=FALSE] 
 colnames(df) <- genes
@@ -243,14 +259,17 @@ df_g <- group_by(df, capture_time, x, gene) %>%
   summarise(median_expression = median(expression))
 
 ggplot(df, aes(x = capture_time, y = expression, fill = x, color = x)) + 
-    geom_jitter(shape = 21, color = 'grey30', alpha = 0.3, width = 0.1) +
+    # geom_beeswarm(shape = 21, color = 'grey30', alpha = 0.3) +
+    geom_jitter(shape = 21, color = 'grey30', alpha = 0.3, width= 0.1) +
     facet_grid(gene ~ x, scales = "free") + 
     scale_fill_brewer(palette = "Set1") +
     scale_color_brewer(palette = "Set1") +
-    theme(legend.position = "none", strip.text = element_text(size = 10, face = "bold"),
-          strip.text.y = element_text(size = 8),
+    theme(legend.position = "none", 
+          strip.text = element_text(face = "bold"),
+          strip.text.x = element_text(size = 10, margin = margin(.1, 0, .1, 0, "cm")),
+          strip.text.y = element_text(size = 8, margin = margin(0, .1, 0, .1, "cm")),
           strip.background = element_rect(colour = "black", fill = "grey95", 
-                                          size = 0.5, linetype = 1)) +
+                                          size = 0.3, linetype = 1)) +
   theme(axis.text = element_text(size = 9),
         axis.text.y = element_text(size = 8),
         axis.title = element_text(size = 10)) +
@@ -260,7 +279,27 @@ ggplot(df, aes(x = capture_time, y = expression, fill = x, color = x)) +
                  shape = 21, color = 'black', size = 2) +
   geom_line(data = df_g, aes(y = median_expression, group = 1))
 
-ggsave("../../figs/supplementary_time_shalek.png", width = 6, height = 4)
+plot_over_capture_time <- last_plot()
+
+# ggsave("../../figs/supplementary_time_shalek.png", width = 6, height = 4)
+```
+
+We have everything needed for plot 1:
+
+```{r}
+other_pseudotime_comparison_plot <- readRDS("../../figs/shalek_cor.rds")
+lsize = 12
+upper_grid <- plot_grid(time_plot, other_pseudotime_comparison_plot,
+                        rel_widths = c(1,2), labels = c("A", "B"),
+                        label_size = lsize)
+bottom_grid <- plot_grid(plot_over_capture_time, plot_over_pseudotime,
+                         labels = c("C", "D"),
+                         label_size = lsize)
+
+plot_grid(upper_grid, bottom_grid, nrow = 2,
+          rel_heights = c(2,3))
+
+ggsave("../../figs/new/shalek_2.png", width = 9, height = 6)
 ```
 
 
@@ -274,7 +313,7 @@ We'll use limma-voom for standard differential expression:
 dge <- DGEList(counts(sce_hvg))
 dge <- calcNormFactors(dge)
 
-design <- model.matrix(~ x, pData(sce_hvg))
+design <- model.matrix(~ x, colData(sce_hvg))
 v <- voom(dge, design, plot = TRUE)
 
 fit <- lmFit(v, design)
@@ -285,7 +324,7 @@ results <- decideTests(fit)
 df_limma <- data_frame(coef = fit$coefficients[,2], 
                        pval = fit$p.value[,2],
                        mu = pcavi$m_mu,
-                       ensembl_gene_id = fData(sce_hvg)$ensembl_gene_id) %>% 
+                       ensembl_gene_id = rowData(sce_hvg)$ensembl_gene_id) %>% 
   left_join(df_beta, by = "ensembl_gene_id") %>% 
   dplyr::mutate(qval = p.adjust(pval, method = "BH"),
                 log10qval = -log10(qval))
@@ -333,32 +372,35 @@ write_csv(df_beta, "../../data/shalek/shalek_interactions.csv")
 ```{r more-vis}
 textinfo <- frame_data(
   ~x, ~y, ~label,
-  1.1, 0.2, "Gene upregulated along pseudotime\nLPS increases upregulation",
-  1.1, -0.2, "Gene upregulated along pseudotime\nPAM increases upregulation",
-  -1.2, 0.2, "Gene downregulated along pseudotime\nPAM increases downregulation",
-  -1.2, -0.2, "Gene downregulated along pseudotime\nLPS increases downregulation"
+  1.2, 0.2, "Gene upregulated along pseudotime\nLPS increases upregulation",
+  1.2, -0.2, "Gene upregulated along pseudotime\nPAM increases upregulation",
+  -1.3, 0.2, "Gene downregulated along pseudotime\nPAM increases downregulation",
+  -1.3, -0.2, "Gene downregulated along pseudotime\nLPS increases downregulation"
 )
 
 cols <- RColorBrewer::brewer.pal(3, "Set2")
 cols2 <- c("#c5e2d9", cols[2])
 
-ggplot(df_beta, aes(x = lambda, y = beta, color = is_sig_graph)) + 
-  geom_point() +
+outline_cols = c("#c5e2d9", 'black')
+
+ggplot(df_beta, aes(x = lambda, y = beta)) +
+  geom_point(shape = 21, aes(fill = is_sig_graph, color = is_sig_graph)) +
   geom_vline(xintercept = 0, linetype = 2, alpha = 0.5) +
   geom_hline(yintercept = 0, linetype = 2, alpha = 0.5) +
-  scale_color_manual(values = cols2, name = "Interaction") +
-  geom_text_repel(data = dplyr::filter(df_beta, (beta > 0.7 & is_sig) | beta < -1.1),
+  scale_fill_manual(values = cols2, name = "Interaction") +
+  scale_color_manual(values = outline_cols, name = "Interaction") +
+  geom_text_repel(data = dplyr::filter(df_beta, (beta > 0.8 & is_sig) | beta < -1.3),
                 aes(label = gene), color = 'black',
-                size = 2.5) +
-  ylab("Covariate pathway interaction") +
-  xlab("Pathway loading") +
+                size = 3) +
+  ylab("Covariate-pseudotime interaction") +
+  xlab("Gene regulation over pseudotime") +
   theme(legend.position = 'bottom',  #, legend.margin = margin(),
         axis.text = element_text(size = 10),
         axis.title = element_text(size = 11),
         legend.title = element_text(size = 11),
         legend.text = element_text(size = 10)) +
   geom_text(data = textinfo, aes(x = x, y = y, label = label), 
-            color = 'black', size = 3)
+            color = 'black', size = 3, fontface = "bold")
 lplot <- ggExtra::ggMarginal(last_plot(), margins = "y", type = "histogram", size = 10)
 print(lplot)
 ```
@@ -370,7 +412,7 @@ print(lplot)
 genome <- "mm9"
 id <- "ensGene"
 
-all_genes <- fData(sce_hvg)$ensembl_gene_id
+all_genes <- rowData(sce_hvg)$ensembl_gene_id
 
 upreg_genes <- filter(df_beta, is_sig, beta > 0) %>% extract2("ensembl_gene_id") 
 downreg_genes <- filter(df_beta, is_sig, beta < 0) %>% extract2("ensembl_gene_id")
@@ -427,7 +469,8 @@ ggplot(aes(x = term, y = log10qval)) + #, size = 100 * prop_cat)) +
     theme(axis.title.y = element_blank()) +
     ylab(expression(paste("-", log[10], " q-value"))) +
   scale_size(name = "% category\nrepresented") +
-    theme(legend.position = "none",
+    theme(legend.position = "bottom", #c(0.6,0.1),
+          legend.direction = "vertical",
         axis.text = element_text(size = 8),
         axis.text.y = element_text(size = 7),
         axis.title = element_text(size = 10),
@@ -439,6 +482,18 @@ ggplot(aes(x = term, y = log10qval)) + #, size = 100 * prop_cat)) +
                                           size = 0.5, linetype = 1))
 ggsave("../../figs/go.png", width = 5, height = 5)
 goplot <- last_plot()
+```
+
+
+First plot for new arrangement:
+
+```{r}
+lsize <- 12
+right_grid <- plot_grid(de_plot, goplot, label_size = lsize,
+                         nrow = 2, labels = c("B", "C"))
+main_plot_1 <- plot_grid(lplot, right_grid, labels = c("A", ""), label_size = lsize,
+                         ncol = 2, rel_widths = c(2,1))
+ggsave(plot = main_plot_1, file = "../../figs/new/shalek_1.png", width = 11, height = 6)
 ```
 
 
@@ -481,11 +536,11 @@ supp_paper <- read_excel("../../data/supplementary/nature13437-s4.xls")
 anti_viral <- mutate(supp_paper, gene = stringr::str_to_title(GENE)) %>% 
   filter(CLUSTER == "Id")
 
-mm <- match(anti_viral$gene, fData(sce_hvg)$mgi_symbol)
-fData(sce_hvg)$anti_viral <- rep(FALSE, nrow(sce_hvg))
-fData(sce_hvg)$anti_viral[mm] <- TRUE
+mm <- match(anti_viral$gene, rowData(sce_hvg)$mgi_symbol)
+rowData(sce_hvg)$anti_viral <- rep(FALSE, nrow(sce_hvg))
+rowData(sce_hvg)$anti_viral[mm] <- TRUE
 
-sce_av <- sce_hvg[fData(sce_hvg)$anti_viral, ]
+sce_av <- sce_hvg[rowData(sce_hvg)$anti_viral, ]
 
 scaled_exprs <- scale(t(exprs(sce_av)))
 
@@ -495,6 +550,50 @@ qplot(pcavi$m_z, rowMeans(scaled_exprs), color = xs) +
 
 ggsave("../../figs/supp_shalek_antiviral_score.png", width = 6, height = 4)
 ```
+
+# Peaked inflammatory module
+
+```{r}
+ints <- interactions(pcavi)
+ints$mgi_symbol <- rowData(sce_hvg)$mgi_symbol
+
+peak_genes <- dplyr::filter(supp_paper, CLUSTER == "IIIc") %>% 
+  .$GENE %>% 
+  stringr::str_to_title()
+
+peak_genes <- dplyr::filter(supp_paper, CLUSTER == "IIIc") %>% 
+  .$GENE %>% 
+  stringr::str_to_title()
+
+get_intersect_length <- function(n_top) {
+  top_ints <- dplyr::arrange(ints, interaction_effect_size) %>% 
+    head(n = n_top) %>% 
+    .$mgi_symbol
+  length(intersect(top_ints, peak_genes)) / n_top
+}
+
+get_intersect_length(30)
+
+```
+
+Boxplot for Chris:
+
+```{r}
+genes <- c("Tnf", "Rasgefb1", "Tnfaip3", "Malt1")
+mm <- match(genes, rowData(sce_hvg)$mgi_symbol)
+
+df_bp <- as_data_frame(t(exprs(sce_hvg)[mm, ]))
+names(df_bp) <- genes
+df_bp_tidy <- mutate(df_bp, Stimulant = sce_hvg$stimulant) %>% 
+  gather(gene, expression, -Stimulant)
+
+ggplot(df_bp_tidy, aes(x = gene, y = expression, fill = Stimulant)) +
+  geom_violin() +
+  scale_fill_brewer(palette = "Set1") +
+  labs(x = "Gene", y = "Normalised Expression")
+ggsave("../../figs/shalek_violinplot.png", width = 8, height = 4)
+```
+
 
 
 # Technical

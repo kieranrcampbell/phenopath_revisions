@@ -318,3 +318,19 @@ rule fit_linear:
 
 
 
+# BRCA reanalysis 
+rule brca_clvm:
+    input:
+        "data/BRCA/sce_brca_clvm.rds"
+    output:
+        "data/BRCA/clvm_results.rds"
+    shell:
+        "Rscript scripts/run_cavi.R {input} {output} 1 1e-10"
+
+rule coad_clvm:
+    input:
+        "data/COAD/sce_coad_clvm.rds"
+    output:
+        "data/COAD/clvm_results.rds"
+    shell:
+        "Rscript scripts/run_cavi.R {input} {output} 1 5e-7"

@@ -58,8 +58,17 @@ alg_to <- c("DPT", "Monocle 2", "PhenoPath", "TSCAN")
 df_R2$algorithm <- plyr::mapvalues(df_R2$algorithm, from = alg_from, to = alg_to)
 
 ggplot(df_R2, aes(x = hvg, y = R2_to_time, group = algorithm, color = algorithm)) +
-  geom_line(size = 1.5) + geom_point(shape = 21, fill = 'white', size = 3) +
+  geom_line(size = 1.5) + 
+  geom_point(shape = 21, fill = 'white', size = 3) +
   labs(y = expression(R^2~"to capture time"), x = "Number of highly variable genes") +
-  scale_color_brewer(palette = "Set1", name = "Algorithm")
+  scale_color_brewer(palette = "Set1", name = "Algorithm") +
+  theme(axis.text = element_text(size = 8),
+        axis.title = element_text(size = 9),
+        legend.title = element_text(size = 11),
+        legend.text = element_text(size = 10)) 
+
+plt <- last_plot()
+
+saveRDS(plt, "figs/shalek_cor.rds")
 
 ggsave("figs/shalek_cor.png", width = 5, height = 3)
