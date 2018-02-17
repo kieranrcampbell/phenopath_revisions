@@ -64,6 +64,14 @@ x <- 2 * (sce_hvg$stimulant == "LPS") - 1
 pcavi <- phenopath(sce_hvg, x, z_init = pc1)
 ```
 
+Save for decision analysis:
+
+```{r}
+dec_df <- data_frame(gene = featureNames(sce_hvg),
+                     m = pcavi$m_beta[1,],
+                     s = pcavi$s_beta[1,])
+write_csv(dec_df, "../../data/shalek/dec_df.csv")
+```
 
 
 Plot the elbo:
@@ -103,10 +111,14 @@ df_beta <- data_frame(
   beta = pcavi$m_beta[1,],
   chi = pcavi$chi_exp[1,],
   alpha = pcavi$m_alpha[1,],
+  pos_sd = sqrt(pcavi$s_beta[1,]),
   gene = fData(sce_hvg)$mgi_symbol, #stringr::str_to_title(featureNames(sce_hvg)),
   ensembl_gene_id = fData(sce_hvg)$ensembl_gene_id,
   is_sig = significant_interactions(pcavi, n = 3)#[,1]
 )
+
+
+write_csv(df_beta, "../../data/shalek/df_gene_shalek.csv")
 
 
 df_beta$is_sig_graph <- 
@@ -495,6 +507,50 @@ qplot(pcavi$m_z, rowMeans(scaled_exprs), color = xs) +
 
 ggsave("../../figs/supp_shalek_antiviral_score.png", width = 6, height = 4)
 ```
+
+# Peaked inflammatory module
+
+```{r}
+ints <- interactions(pcavi)
+ints$mgi_symbol <- fData(sce_hvg)$mgi_symbol
+
+peak_genes <- dplyr::filter(supp_paper, CLUSTER == "IIIc") %>% 
+  .$GENE %>% 
+  stringr::str_to_title()
+
+peak_genes <- dplyr::filter(supp_paper, CLUSTER == "IIIc") %>% 
+  .$GENE %>% 
+  stringr::str_to_title()
+
+get_intersect_length <- function(n_top) {
+  top_ints <- dplyr::arrange(ints, interaction_effect_size) %>% 
+    head(n = n_top) %>% 
+    .$mgi_symbol
+  length(intersect(top_ints, peak_genes)) / n_top
+}
+
+get_intersect_length(30)
+
+```
+
+Boxplot for Chris:
+
+```{r}
+genes <- c("Tnf", "Rasgefb1", "Tnfaip3", "Malt1")
+mm <- match(genes, fData(sce_hvg)$mgi_symbol)
+
+df_bp <- as_data_frame(t(exprs(sce_hvg)[mm, ]))
+names(df_bp) <- genes
+df_bp_tidy <- mutate(df_bp, Stimulant = sce_hvg$stimulant) %>% 
+  gather(gene, expression, -Stimulant)
+
+ggplot(df_bp_tidy, aes(x = gene, y = expression, fill = Stimulant)) +
+  geom_violin() +
+  scale_fill_brewer(palette = "Set1") +
+  labs(x = "Gene", y = "Normalised Expression")
+ggsave("../../figs/shalek_violinplot.png", width = 8, height = 4)
+```
+
 
 
 # Technical
