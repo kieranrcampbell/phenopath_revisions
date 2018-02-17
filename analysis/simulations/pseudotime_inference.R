@@ -54,14 +54,19 @@ fit_wishbone <- function(exprs_mat, sce) {
   nwp <- as.integer(round(n/5))
   kk <- as.integer(round(n/5))
   
-  wb$run_wishbone(
-    start_cell = root_cell,
-    branch = TRUE,
-    k = kk,
-    num_waypoints = nwp
-  )
-  
-  wishbone_pst <- wb$trajectory$as_matrix()
+  wishbone_pst = tryCatch(
+    {
+    wb$run_wishbone(
+      start_cell = root_cell,
+      branch = TRUE,
+      k = kk,
+      num_waypoints = nwp
+    )
+    wishbone_pst <- wb$trajectory$as_matrix()
+    wishbone_pst
+    }, error = function(e) {
+      rep(NA, n)
+    })
   wishbone_pst
 }
 
