@@ -50,8 +50,9 @@ fit_wishbone <- function(exprs_mat, sce) {
   
   root_cell <- colnames(sce)[which.min(pData(sce)$pst)]
   
-  nwp <- as.integer(25)
-  kk <- as.integer(25)
+  n <- ncol(exprs_mat)
+  nwp <- as.integer(round(n/8))
+  kk <- as.integer(round(n/8))
   
   wb$run_wishbone(
     start_cell = root_cell,
