@@ -21,7 +21,8 @@ library(edgeR)
 library(limma)
 library(gplots)
 library(RColorBrewer)
-library(clvm)
+library(phenopath)
+library(ggbeeswarm)
 
 set.seed(123L)
 
@@ -36,6 +37,7 @@ Load results:
 ```{r load-all-data}
 pcavi <- readRDS("../../data/COAD/clvm_results.rds")
 sce <- readRDS("../../data/COAD/sce_coad_clvm.rds")
+sce <- updateSCESet(sce)
 
 x <- sce$x
 ```
@@ -59,7 +61,7 @@ ggsave("../../figs/elbo_coad.png", width = 5, height = 3)
 ```{r pseudotime-vs-pc1}
 pc1 <- prcomp(t(exprs(sce)), scale = TRUE)$x[,1]
 
-qplot(scale_vec(pc1), scale_vec(pcavi$m_t), color = factor(x)) +
+qplot(scale_vec(pc1), scale_vec(pcavi$m_z), color = factor(x)) +
   scale_color_brewer(palette = "Set1", name = "MSI-high") +
   stat_function(fun = function(x) x, color = 'black') + 
   xlab("PC1") + ylab(expression(z))
@@ -80,16 +82,16 @@ Here we use $n=3$:
 
 ```{r beta-df}
 df_beta <- data_frame(
-  c = pcavi$m_c,
+  c = pcavi$m_lambda,
   beta_msi = pcavi$m_beta[1,],
   chi_msi = pcavi$chi_exp[1,],
   alpha_msi = pcavi$m_alpha[1,],
   pos_sd = sqrt(pcavi$s_beta[1,]),
-  gene = featureNames(sce),
-  is_mmr = fData(sce)$is_mmr,
+  gene = rownames(sce),
+  is_mmr = rowData(sce)$is_mmr,
   is_sig = as.vector(significant_interactions(pcavi, n = 3)),
-  hgnc_symbol = fData(sce)$hgnc_symbol,
-  ensembl_gene_id = fData(sce)$ensembl_gene_id
+  hgnc_symbol = rowData(sce)$hgnc_symbol,
+  ensembl_gene_id = rowData(sce)$ensembl_gene_id
 )
 
 write_csv(df_beta, "../../data/COAD/df_gene_coad.csv")
@@ -138,7 +140,7 @@ dplyr::filter(df_beta, is_sig) %>% dplyr::arrange(desc(abs(beta_msi))) %>%
 We can plot expression along phenotime for the 35 _significant_ genes:
 
 ```{r exprs-along-pst, fig.width = 12, fig.height = 9}
-tmap <- pcavi$m_t
+tmap <- pcavi$m_z
 
 
 top_genes <- dplyr::filter(df_beta, is_sig) %>% 
@@ -160,12 +162,23 @@ t(exprs(sce))[, top_genes] %>%
 What is phenotime? Check the immune response genes:
 
 ```{r immune-resp, fig.width = 7}
-immune_genes <- c("FOXP3", "CD4", "IL2RB")
-immune_inds <- match(immune_genes, fData(sce)$hgnc_symbol)
+immune_genes_all <- read_csv("../../data/COAD/immune_geneset.txt", skip = 2, col_names = FALSE)[[1]]
+immune_genes_all <- c(immune_genes_all, "IL2RB")
+# immune_genes <- c("FOXP3", "CD4", "ZEB1", "IL2RB", "MAFB", "CSF1", "THY1")
+df_immune <- mutate(df_beta, is_immune = gene_symbol %in% immune_genes_all) %>% 
+  filter(is_immune)
+genes_to_plot <- arrange(df_immune, desc(c)) %>% head(n = 18) %>% .$gene_symbol
+genes_to_plot <- c(genes_to_plot, "FOXP3", "IL2RB")
 
-t(exprs(sce))[, immune_inds, drop=FALSE] %>% 
+immune_inds <- match(genes_to_plot, rowData(sce)$hgnc_symbol)
+
+marker_mat <- t(exprs(sce))[, immune_inds, drop=FALSE]
+colnames(marker_mat) <- genes_to_plot
+marker_df <-  marker_mat %>% 
   as_data_frame() %>% 
-  dplyr::mutate(phenotime = tmap, x = factor(x)) %>% 
+  dplyr::mutate(phenotime = tmap, x = factor(x)) 
+
+marker_df %>% 
   gather(gene, expression, -phenotime, -x) %>% 
   ggplot(aes(x = phenotime, y = expression, color = x)) + geom_point(alpha = 0.4) +
   facet_wrap(~ gene, scales = "free_y") + 
@@ -173,6 +186,42 @@ t(exprs(sce))[, immune_inds, drop=FALSE] %>%
   theme(legend.position = "top", strip.text.x = element_text(size = 9)) +
   stat_smooth(se = FALSE, method = "lm", size = 2)#, formula = y ~ ns(x,3))
 ```
+
+Heatmap:
+
+```{r}
+mx <- as.matrix(dplyr::select(marker_df, -phenotime, -x))
+d <- dist((mx))
+hc <- hclust(d)
+
+marker_df_2 <- mutate(marker_df, pseudotime_order = rank(phenotime)) %>% 
+  dplyr::select(-x) %>% 
+  gather(gene, expression, -pseudotime_order, -phenotime)
+
+marker_df_2 <- group_by(marker_df_2, gene) %>% 
+  mutate(norm_expression = (expression - mean(expression)) / sd(expression))
+
+marker_df_2$gene <- factor(marker_df_2$gene, levels = colnames(mx)[hc$order])
+
+ggplot(marker_df_2, aes(x = pseudotime_order, y = gene, fill = norm_expression)) +
+         geom_raster() +
+  scale_fill_viridis(name = "Expression\nz-score") +
+  theme(legend.position = "right",
+        axis.title.y = element_text(size = 10),
+        axis.text.y = element_text(size = 7, margin = margin(r = -0.5, l = 0, unit = "cm")),
+        axis.text.x = element_blank(),
+        axis.title.x = element_text(size = 10, margin = margin(t = 0, unit = "cm")),
+        axis.ticks = element_blank(),
+        axis.line = element_blank(),
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 9),
+        legend.direction = "vertical",
+        legend.margin = margin(l = -.5, unit = "cm")) +
+  labs(y = "Gene", x = "Pseudotime order")
+heatmap <- last_plot()
+```
+
+
 
 Nice immune response plot:
 
@@ -213,10 +262,10 @@ Look at MLH1 in more detail:
 mlh1 <- c("MLH1")
 
 make_gene_plot <- function(genes) {
-  inds <- match(genes, fData(sce)$hgnc_symbol)
+  inds <- match(genes, rowData(sce)$hgnc_symbol)
   
   df <- t(exprs(sce))[, inds, drop=FALSE] 
-  colnames(df) <- fData(sce)$hgnc_symbol[inds]
+  colnames(df) <- rowData(sce)$hgnc_symbol[inds]
   
   df <- as_data_frame(df) %>% 
     dplyr::mutate(phenotime = tmap, x = as.character(x)) %>% 
@@ -235,15 +284,19 @@ make_gene_plot <- function(genes) {
     facet_grid(gene ~ x, scales = "free") + 
     scale_fill_brewer(palette = "Set1", name = "MSI") +
     scale_color_brewer(palette = "Set1", name = "MSI") +
-    theme(legend.position = "none", strip.text = element_text(size = 9),
+    theme(legend.position = "none", 
+          strip.text = element_text(size = 9, face = "bold"),
           strip.background = element_rect(colour = "black", fill = "grey95", 
-                                          size = 0.5, linetype = 1)) +
+                                          size = 0.5, linetype = 1),
+          # strip.text = element_text(face = "bold"),
+          strip.text.x = element_text(margin = margin(.1, 0, .1, 0, unit = "cm")),
+          strip.text.y = element_text(margin = margin(0, .1, 0, .1, unit = "cm"))) +
   theme(axis.text = element_text(size = 9),
         axis.title = element_text(size = 10)) +
     stat_smooth(se = FALSE, method = "lm", size = 1.5, formula = y ~ ns(x,3),
                 color = 'grey30') +
     ylab(expression(Expression ~ log[2] ~ "(TPM + 1)")) + 
-    xlab("Pathway score (immune response)")
+    xlab("Pseudotime")
 }
 
 genes <- c("MLH1", "TGFBR2")
@@ -263,7 +316,7 @@ dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 
 sce$msi_cov <- 1 * (sce$msi_status == "msi-h")
-design <- model.matrix(~ msi_cov, pData(sce))
+design <- model.matrix(~ msi_cov, colData(sce))
 v <- voom(dge, design, plot = TRUE)
 
 fit <- lmFit(v, design)
@@ -282,7 +335,7 @@ qvals <- p.adjust(fit$p.value[,2], method = 'BH')
 df_limma <- data_frame(msi_coef = fit$coefficients[,2], 
                        msi_qval = qvals,
                        mu = pcavi$m_mu,
-                       feature = featureNames(sce)) %>% 
+                       feature = rownames(sce)) %>% 
   left_join(int_df_limma, by = "feature") %>% 
   dplyr::mutate(msi_log10qval = -log10(msi_qval),
                 limma_sig = msi_qval < 0.05) 
@@ -317,8 +370,8 @@ ggplot(df_limma, x =-log10(msi_qval), aes(x = beta_msi, y =-log10(msi_qval), col
   xlab(expression(paste("PhenoPath ", beta))) +
   # theme(legend.position = 'top') +
   geom_hline(yintercept = -log10(0.05), linetype = 2, alpha = 0.5) +
-  theme(axis.text = element_text(size = 8),
-        axis.title = element_text(size = 9)) +
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 10)) +
   #theme(legend.title = element_text(size = 10),
   #      legend.text = element_text(size = 9)) +
   theme(legend.position = "none") +
@@ -360,23 +413,26 @@ textinfo <- frame_data(
 cols <- RColorBrewer::brewer.pal(3, "Set2")
 cols2 <- c("#c5e2d9", cols[2])
 
-ggplot(df_beta, aes(x = c, y = beta_msi, color = is_sig_graph)) + 
-  geom_point() +
+outline_cols = c("#c5e2d9", 'black')
+
+ggplot(df_beta, aes(x = c, y = beta_msi)) + 
+  geom_point(shape = 21, aes(fill = is_sig_graph, color = is_sig_graph)) +
   geom_vline(xintercept = 0, linetype = 2, alpha = 0.5) +
   geom_hline(yintercept = 0, linetype = 2, alpha = 0.5) +
-  scale_color_manual(values = cols2, name = "Interaction") +
+  scale_fill_manual(values = cols2, name = "Interaction") +
+  scale_color_manual(values = outline_cols, name = "Interaction") +
   geom_text_repel(data = dplyr::filter(df_beta, is_sig, beta_msi < -0.3 | beta_msi > 0.38),
                   aes(label = hgnc_symbol), color = 'black', 
-                  size = 2.5) +
-  ylab("Covariate pathway interaction") +
-  xlab("Pathway loading") +
+                  size = 3) +
+  ylab("Covariate-pseudotime interaction") +
+  xlab("Gene regulation over pseudotime") +
   theme(legend.position = 'bottom',
         axis.text = element_text(size = 10),
         axis.title = element_text(size = 11),
         legend.title = element_text(size = 11),
         legend.text = element_text(size = 10)) +
   geom_text(data = textinfo, aes(x = x, y = y, label = label), 
-            color = 'black', size = 3)
+            color = 'black', size = 3, fontface = "bold")
 
 lplot <- last_plot()
 lplot
@@ -390,7 +446,7 @@ library(goseq)
 genome <- "hg19"
 id <- "ensGene"
 
-all_genes <- fData(sce)$ensembl_gene_id
+all_genes <- rowData(sce)$ensembl_gene_id
 
 cs <- apply(exprs(sce), 1, cor, tmap)
 cdf <- data_frame(feature = all_genes, correlation = cs)
@@ -430,6 +486,7 @@ gos <- bind_rows(
   parse_go(godown, "Down-regulated", length(downreg_genes))
 )
 
+gos$term <- stringr::str_to_title(gos$term)
 gos$term <- factor(gos$term, levels = gos$term[order(gos$log10qval)])
 
 gos <- mutate(gos, prop_cat = numDEInCat / numInCat)
@@ -445,8 +502,10 @@ filter(gos, type == "Up-regulated") %>%
       legend.position = c(0, 0), legend.direction = "horizontal",
         axis.text = element_text(size = 8),
         axis.title = element_text(size = 10),
-        legend.title = element_text(size = 11),
-        legend.text = element_text(size = 10)) 
+        legend.title = element_text(size = 10),
+        legend.text = element_text(size = 10)) +
+    geom_segment(aes(y = min(log10qval - 1), yend = log10qval, x = term, xend = term),
+               color = 'grey30', linetype = 3) 
 
 goplot <- last_plot()
 ```
@@ -483,53 +542,107 @@ saveRDS(lplot, "../../figs/coad/lplot.rds")
 # Cibertsort
 
 ```{r csort}
-csort_raw <- read_tsv("../../data/COAD/cellTypeFractionsAll.tsv")
+csort_raw <- read_tsv("../../data/COAD/cellTypeFractionsAll_new.tsv")
 
 csort <- dplyr::mutate(csort_raw, patient_barcode = tolower(patientBarcode)) %>% 
-  dplyr::select(-patientBarcode, -fair_LM22)
+  dplyr::select(-patientBarcode, -cibersort_LM22) %>% 
+  filter(disease == "CRC") %>% dplyr::select(-disease)
 
-csort_wide <- spread(csort, cell_type, cibersort_LM22)
+csort <- csort[!duplicated(csort),]
+
+csort_wide <- spread(csort, cell_type, quanTIseq_lsei_TIL10)
+
 
 sample_names <- sce$patient_barcode
 mm <- match(sample_names, csort_wide$patient_barcode)
 csort <- csort_wide[mm, ]
 stopifnot(all.equal(sce$patient_barcode, csort$patient_barcode))
 
-tmap <- pcavi$m_t
+tmap <- pcavi$m_z
 
 cors <- apply(as.matrix(csort[,-c(1:2)]), 2, cor, tmap, method = "spearman")
 
 cdf <- data_frame(cell_type = names(csort)[-c(1:2)],
                   correlation_to_z = cors)
 cdf <- dplyr::arrange(cdf, correlation_to_z)
+cdf <- dplyr::filter(cdf, cell_type != "Monocyte")
+
 cell_type_levels <- cdf$cell_type
 cdf$cell_type <- factor(cdf$cell_type, levels = cell_type_levels)
 
-ggplot(cdf, aes(x = cell_type, y = correlation_to_z)) +
-  geom_bar(stat = "identity") +
-  ylab("Cibertsort correlation to z") +
-  xlab("Cibertsort cell type") +
-  coord_flip()
+ggplot(cdf, aes(x = cell_type, y = correlation_to_z, fill = cell_type)) +
+  geom_bar(stat = "identity", color = 'grey30', size = 0.2) +
+  ylab("quanTIseq correlation to pseudotime") +
+  xlab("quanTIseq cell type") +
+  coord_flip() +
+  theme(legend.position = "none",
+        axis.text = element_text(size = 9),
+        axis.title = element_text(size = 10)) +
+  scale_fill_brewer()
+quantiseq_plot <- last_plot()
 ```
+
+New plot 1:
+
+```{r}
+lsize = 12
+lower_grid <- plot_grid(goplot, quantiseq_plot, labels = c("B", "C"), label_size = lsize)
+
+plot_grid(heatmap, lower_grid, ncol = 1, labels = c("A", ""), label_size = lsize)
+ggsave("../../figs/new/coad_1.png", width = 8, height = 5)
+```
+
 
 Boxplot for Chris:
 
 ```{r}
 genes <- c("MLH1", "TGFBR2")
 
-mm <- match(genes, fData(sce)$hgnc_symbol)
+mm <- match(genes, rowData(sce)$hgnc_symbol)
 
 df_bp <- as_data_frame(t(exprs(sce)[mm, ]))
 names(df_bp) <- genes
 df_bp_tidy <- mutate(df_bp, MSI_high = sce$msi_status == "msi-h") %>% 
   gather(gene, expression, -MSI_high)
+df_bp_tidy$msi_status <- plyr::mapvalues(df_bp_tidy$MSI_high,
+                                         from = c(FALSE, TRUE),
+                                         to = c("MSI-low", "MSI-high"))
+
 
 filter(df_bp_tidy) %>% 
-  ggplot(aes(x = gene, y = expression, fill = MSI_high)) +
-    geom_violin() +
+  ggplot(aes(x = msi_status, y = expression, fill = msi_status)) +
+    geom_beeswarm(shape = 21, alpha = 0.7) +
+  facet_wrap(~ gene) +
     scale_fill_brewer(palette = "Set1", name = "High MSI") +
-    labs(x = "Gene", y = "Normalised Expression")
+    labs(x = "Gene", y = "Normalised Expression") +
+theme(legend.position = "none", 
+          strip.text = element_text(size = 9, face = "bold"),
+          strip.background = element_rect(colour = "black", fill = "grey95", 
+                                          size = 0.5, linetype = 1),
+          # strip.text = element_text(face = "bold"),
+          strip.text.x = element_text(margin = margin(.1, 0, .1, 0, unit = "cm")),
+          strip.text.y = element_text(margin = margin(0, .1, 0, .1, unit = "cm"))) +
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 10))
 
-
-ggsave("../../figs/coad_violinplot.png", width = 5, height = 4)
+beeswarm_plot <- last_plot()
+# ggsave("../../figs/coad_violinplot.png", width = 5, height = 4)
 ```
+
+New plot 2:
+
+
+```{r}
+bottom_grid <- plot_grid(limma_plot, beeswarm_plot, gene_plot, nrow = 1,
+                         labels = c("B", "C", "D"),
+                         label_size = lsize)
+
+plot_grid(lplot, bottom_grid, ncol = 1,
+          labels = c("A", ""), label_size = lsize,
+          rel_heights = c(2.5,1))
+
+ggsave("../../figs/new/coad_2.png", width = 9, height = 8.5)
+```
+
+
+

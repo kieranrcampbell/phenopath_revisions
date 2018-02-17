@@ -20,8 +20,8 @@ library(DT)
 library(limma)
 library(edgeR)
 library(RColorBrewer)
-library(reactome.db)
-library(clvm)
+# library(reactome.db)
+library(phenopath)
 library(biomaRt)
 library(goseq)
 
@@ -33,6 +33,8 @@ select <- dplyr::select
 filter <- dplyr::filter
 mutate <- dplyr::mutate
 arrange <- dplyr::arrange
+
+lsize = 12
 ```
 
 # Load data
@@ -42,7 +44,7 @@ Load results:
 ```{r load-all-data}
 pcavi <- readRDS("../../data/BRCA/clvm_results.rds")
 sce <- readRDS("../../data/BRCA/sce_brca_clvm.rds")
-
+sce <- updateSCESet(sce)
 x <- sce$x
 sce$tmap <- pcavi$m_t
 
@@ -68,7 +70,7 @@ ggsave("../../figs/elbo_brca.png", width = 5, height = 3)
 ```{r pseudotime-vs-pc1}
 pc1 <- prcomp(t(exprs(sce)), scale = TRUE)$x[,1]
 
-qplot(scale_vec(pc1), scale_vec(pcavi$m_t), color = factor(x)) +
+qplot(scale_vec(pc1), scale_vec(pcavi$m_z), color = factor(x)) +
   scale_color_brewer(palette = "Set1", name = "x") +
   stat_function(fun = function(x) x, color = 'black') + 
   xlab("PC1") + ylab(expression(z))
@@ -89,15 +91,15 @@ Here we use $n=3$:
 
 ```{r beta-df}
 df_beta <- data_frame(
-  c = pcavi$m_c,
+  c = pcavi$m_lambda,
   beta = pcavi$m_beta[1,],
   chi = pcavi$chi_exp[1,],
   alpha = pcavi$m_alpha[1,],
   pos_sd = sqrt(pcavi$s_beta[1,]),
-  gene = featureNames(sce),
+  gene = rownames(sce),
   is_sig = as.vector(significant_interactions(pcavi, n = 3)),
-  hgnc_symbol = fData(sce)$hgnc_symbol,
-  ensembl_gene_id = fData(sce)$ensembl_gene_id
+  hgnc_symbol = rowData(sce)$hgnc_symbol,
+  ensembl_gene_id = rowData(sce)$ensembl_gene_id
 )
 
 write_csv(df_beta, "../../data/BRCA/df_gene_brca.csv")
@@ -147,7 +149,7 @@ filter(df_beta, is_sig) %>% arrange(desc(abs(beta))) %>%
 We can plot expression along phenotime for the 35 _significant_ genes:
 
 ```{r exprs-along-pst, fig.width = 12, fig.height = 9}
-tmap <- pcavi$m_t
+tmap <- pcavi$m_z
 sce$tmap <- tmap
 
 
@@ -216,7 +218,7 @@ plot_grid(plotlist = plots, ncol = 1)
 dge <- DGEList(counts(sce))
 dge <- calcNormFactors(dge)
 
-design <- model.matrix(~ x, pData(sce))
+design <- model.matrix(~ x, colData(sce))
 v <- voom(dge, design, plot = TRUE)
 
 fit <- lmFit(v, design)
@@ -235,8 +237,8 @@ qvals <- p.adjust(fit$p.value[,2], method = 'BH')
 df_limma <- data_frame(coef = fit$coefficients[,2], 
                        pval = fit$p.value[,2],
                        qval = qvals,
-                       mu = pcavi$m_mu,
-                       feature = featureNames(sce)) %>% 
+                       # mu = pcavi$m_mu,
+                       feature = rownames(sce)) %>% 
   left_join(int_df_limma, by = "feature") %>% 
   dplyr::mutate(log10qval = -log10(qval),
                 limma_sig = qval < 0.05) 
@@ -272,8 +274,8 @@ ggplot(df_limma, x =-log10(qval), aes(x = beta, y =-log10(qval), color = is_sig_
   xlab(expression(paste("PhenoPath ", beta))) +
   # theme(legend.position = 'top') +
   geom_hline(yintercept = -log10(0.05), linetype = 2, alpha = 0.5) +
-  theme(axis.text = element_text(size = 8),
-        axis.title = element_text(size = 9)) +
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 10)) +
   #theme(legend.title = element_text(size = 10),
   #      legend.text = element_text(size = 9)) +
   theme(legend.position = "none") +
@@ -289,7 +291,7 @@ library(goseq)
 genome <- "hg19"
 id <- "ensGene"
 
-all_genes <- fData(sce)$ensembl_gene_id
+all_genes <- rowData(sce)$ensembl_gene_id
 
 cs <- apply(exprs(sce), 1, cor, tmap)
 cdf <- data_frame(feature = all_genes, correlation = cs)
@@ -329,6 +331,7 @@ gos <- bind_rows(
   parse_go(godown, "Down-regulated", length(downreg_genes))
 )
 
+gos$term <- stringr::str_to_title(gos$term)
 gos$term <- factor(gos$term, levels = gos$term[order(gos$log10qval)])
 
 filter(gos, type == "Up-regulated") %>% 
@@ -344,9 +347,12 @@ filter(gos, type == "Up-regulated") %>%
         axis.text = element_text(size = 8),
         axis.title = element_text(size = 10),
         legend.title = element_text(size = 11),
-        legend.text = element_text(size = 10)) 
+        legend.text = element_text(size = 10)) +
+    geom_segment(aes(y = min(log10qval - 1), yend = log10qval, x = term, xend = term),
+               color = 'grey30', linetype = 3)
 
 goplot <- last_plot()
+
 ```
 
 
@@ -357,7 +363,7 @@ Do the same for beta:
 genome <- "hg19"
 id <- "ensGene"
 
-all_genes <- fData(sce)$ensembl_gene_id
+all_genes <- rowData(sce)$ensembl_gene_id
 df_beta$ensembl_gene_id <- all_genes
 
 
@@ -415,7 +421,7 @@ ggplot(gos, aes(x = term, y = log10qval, color = type)) +
 Compare to known coefficients:
 
 ```{r compare-known-coef, eval = FALSE}
-df <- dplyr::select(pData(sce), z = tmap, Tumor, Node, Metastasis, AJCC_Stage, PAM50_mRNA, RPPA_Clusters)
+df <- dplyr::select(colData(sce), z = tmap, Tumor, Node, Metastasis, AJCC_Stage, PAM50_mRNA, RPPA_Clusters)
 
 df <- gather(df, variable, value, -z)
 
@@ -505,8 +511,8 @@ And graph the results for various metrics:
 sce <- readRDS("../../data/BRCA/sce_brca_gene_level.rds")
 
 all_genes <- unique(unlist(gene_list_ensembl))
-all_genes <- all_genes[all_genes %in% fData(sce)$ensembl_gene_id]
-mm <- match(all_genes, fData(sce)$ensembl_gene_id)
+all_genes <- all_genes[all_genes %in% rowData(sce)$ensembl_gene_id]
+mm <- match(all_genes, rowData(sce)$ensembl_gene_id)
 is_basal <- sce$PAM50_mRNA == "Basal-like"
 
 Y <- t(exprs(sce)[mm, ])
@@ -514,7 +520,7 @@ colnames(Y) <- all_genes
 
 df_gex <- Y %>% 
   as_data_frame() %>% 
-  dplyr::mutate(is_basal, z = pData(sce)[['tmap']]) %>% 
+  dplyr::mutate(is_basal, z = colData(sce)[['tmap']]) %>% 
   gather(gene, expression, -is_basal, -z)
 
 df_pheno <- bind_rows(
@@ -563,8 +569,10 @@ df_beta <- mutate(df_beta,
 
 filter(df_beta, is_sig) %>% 
   ggplot(aes(x = crossover)) + 
-  geom_histogram(fill = "white", color = "black", bins = 30) +
-  xlab("Crossover point") + ylab("Number of genes")
+  geom_histogram(fill = "#74a9cf", color = "grey90", bins = 30) +
+  xlab("Crossover point") + ylab("Number of genes") +
+  theme(axis.text = element_text(size = 9),
+        axis.title = element_text(size = 10))
 
 cross_plot <- last_plot()
 
@@ -578,7 +586,7 @@ library(goseq)
 genome <- "hg19"
 id <- "ensGene"
 
-all_genes <- fData(sce)$ensembl_gene_id
+all_genes <- rowData(sce)$ensembl_gene_id
 
 crossover_genes <- filter(df_beta, 
                           is_sig & crossover > 0.4) %>% 
@@ -596,7 +604,7 @@ pgo <- parse_go(gocross, "crossover", length(all_genes))
 Crossover plots:
 
 ```{r crossover-gene-plots}
-tmap <- pcavi$m_t
+tmap <- pcavi$m_z
 
 cross_df <- dplyr::select(df_beta, gene, crossover, hgnc_symbol)
 
@@ -652,23 +660,27 @@ textinfo <- frame_data(
 cols <- RColorBrewer::brewer.pal(3, "Set2")
 cols2 <- c("#c5e2d9", cols[2])
 
-ggplot(df_beta, aes(x = c, y = beta, color = is_sig_graph)) + 
-  geom_point() +
+
+outline_cols = c("#c5e2d9", 'black')
+
+ggplot(df_beta, aes(x = c, y = beta)) + 
+  geom_point(shape = 21, aes(fill = is_sig_graph, color = is_sig_graph), alpha = 0.8) +
   geom_vline(xintercept = 0, linetype = 2, alpha = 0.5) +
   geom_hline(yintercept = 0, linetype = 2, alpha = 0.5) +
-  scale_color_manual(values = cols2, name = "Interaction") +
+  scale_fill_manual(values = cols2, name = "Interaction") +
+  scale_color_manual(values = outline_cols, name = "Interaction") +
   geom_text_repel(data = dplyr::filter(df_beta, is_sig, abs(beta) > 0.7),
                  aes(label = hgnc_symbol), color = 'black',
-                 size = 2.5) +
-  ylab("Covariate pathway interaction") +
-  xlab("Pathway loading") +
+                 size = 3) +
+  ylab("Covariate-pseudotime interaction") +
+  xlab("Gene regulation over pseudotime") +
   theme(legend.position = 'bottom',
         axis.text = element_text(size = 10),
         axis.title = element_text(size = 11),
         legend.title = element_text(size = 11),
         legend.text = element_text(size = 10)) +
   geom_text(data = textinfo, aes(x = x, y = y, label = label), 
-            color = 'black', size = 3)
+            color = 'black', size = 3, fontface = "bold")
 
 lplot <- last_plot()
 lplot
@@ -676,17 +688,18 @@ lplot
 ```
 
 ```{r make-gene-plot}
+tmap <- sce$tmap
 make_gene_plot <- function(genes) {
-  inds <- match(genes, fData(sce)$hgnc_symbol)
+  inds <- match(genes, rowData(sce)$hgnc_symbol)
   
   df <- t(exprs(sce))[, inds, drop=FALSE] 
-  colnames(df) <- fData(sce)$hgnc_symbol[inds]
+  colnames(df) <- rowData(sce)$hgnc_symbol[inds]
   
   df <- as_data_frame(df) %>% 
     dplyr::mutate(phenotime = tmap, x = as.character(x)) %>% 
     gather(gene, expression, -phenotime, -x)
   
-  cross_df_2 <- select(cross_df, crossover, hgnc_symbol) %>% 
+  cross_df_2 <- dplyr::select(cross_df, crossover, hgnc_symbol) %>% 
     dplyr::rename(gene = hgnc_symbol)
   df <- inner_join(df, cross_df_2, by = "gene")
   
@@ -705,9 +718,12 @@ make_gene_plot <- function(genes) {
     facet_grid(x ~ gene, scales = "free") + 
     scale_fill_brewer(palette = "Set1", name = "MSI") +
     scale_color_brewer(palette = "Set1", name = "MSI") +
-    theme(legend.position = "none", strip.text = element_text(size = 9),
+    theme(legend.position = "none", 
           strip.background = element_rect(colour = "black", fill = "grey95", 
-                                          size = 0.5, linetype = 1)) +
+                                          size = 0.5, linetype = 1),
+          strip.text = element_text(face = "bold", size = 9),
+          strip.text.x = element_text(margin = margin(.1, 0, .1, 0, unit = "cm")),
+          strip.text.y = element_text(margin = margin(0, .1, 0, .1, unit = "cm"))) +
   theme(axis.text = element_text(size = 9),
         axis.title = element_text(size = 10)) +
     stat_smooth(se = FALSE, method = "lm", size = 1.5, #formula = y ~ ns(x,3),
@@ -724,6 +740,14 @@ make_gene_plot(genes)
 gene_plot <- last_plot()
 ```
 
+New plot # 2:
+
+```{r}
+bottom_left_grid <- plot_grid(limma_plot, cross_plot, ncol = 1,
+                              labels = c("B", "C"), label_size = lsize)
+```
+
+Old large plot:
 
 ```{r large-plot}
 lsize <- 11
@@ -756,7 +780,7 @@ sce_gene <- readRDS("../../data/BRCA/sce_brca_gene_level.rds")
 
 vgf <- c("VEGFA", "VEGFB", "VEGFC", "VEGFD", "FGF2", "CXCL8") 
 
-mm <- match(vgf, fData(sce_gene)$hgnc_symbol)
+mm <- match(vgf, rowData(sce_gene)$hgnc_symbol)
 
 vgf_exprs <- t(exprs(sce_gene)[mm, ]) %>% as_data_frame()
 names(vgf_exprs) <- vgf
@@ -777,7 +801,7 @@ ggsave("../../figs/supplementary_chris/vgf_genes.png", width = 8, height = 6)
 ```{r brca-genes}
 brca_genes <- c("CEP55", "ESR1", "FOXA1", "FOXC1", "KRT17", "MAPT", "MELK", "MMP11", "NAT1", "SFRP1", "UBE2C", "UBE2T")
 
-mm <- match(brca_genes, fData(sce_gene)$hgnc_symbol)
+mm <- match(brca_genes, rowData(sce_gene)$hgnc_symbol)
 
 brca_exprs <- t(exprs(sce_gene)[mm, ]) %>% as_data_frame()
 names(brca_exprs) <- brca_genes
@@ -798,7 +822,7 @@ ggsave("../../figs/supplementary_chris/brca_genes.png", width = 9, height = 6)
 ```{r fbp1-vs-snail}
 genes <- c("FBP1", "SNAI1")
 
-mm <- match(genes, fData(sce_gene)$hgnc_symbol)
+mm <- match(genes, rowData(sce_gene)$hgnc_symbol)
 
 fs_exprs <- t(exprs(sce_gene)[mm, ]) %>% as_data_frame()
 names(fs_exprs) <- genes
@@ -819,7 +843,7 @@ Boxplot for Chris:
 ```{r}
 genes <- c("ESR1", "FBP1", "FOXC1")
 
-mm <- match(genes, fData(sce)$hgnc_symbol)
+mm <- match(genes, rowData(sce)$hgnc_symbol)
 
 df_bp <- as_data_frame(t(exprs(sce)[mm, ]))
 names(df_bp) <- genes
