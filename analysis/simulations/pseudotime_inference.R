@@ -69,7 +69,7 @@ pseudotime_inference <- function(algorithm = "phenopath",
                                  output_file = "myfile.csv",
                                  phenopath_fdata_file = "pdata.csv") {
   
-  stopifnot(algorithm %in% c("phenopath", "dpt", "tscan", "monocle2"))
+  stopifnot(algorithm %in% c("phenopath", "dpt", "tscan", "monocle2", "wishbone"))
   
   sce <- readRDS(input_file)
   exprs_mat <- exprs(sce)
