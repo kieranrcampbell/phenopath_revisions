@@ -1,6 +1,14 @@
 """
 Note to self: qvals (just "differential expression")
 is done with limma
+
+
+!!!!!
+You must set
+export RETICULATE_PYTHON=/apps/well/python/3.4.3/bin/
+(or to similar python3 location)
+before running this for the wishbone analysis
+!!!!!
 """
 
 Ns = [200, 500]

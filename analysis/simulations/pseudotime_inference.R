@@ -35,7 +35,8 @@ fit_tscan <- function(exprs_mat) {
   tscan_pst
 }
 
-fit_wishbone <- function(exprs_mat) {
+fit_wishbone <- function(exprs_mat, sce) {
+  use_python("/apps/well/python/3.4.3/bin/python3")
   wishbone <- import('wishbone')
   csv_file <- tempfile()
   write.csv(t(exprs_mat), csv_file, row.names = TRUE)
@@ -90,7 +91,7 @@ pseudotime_inference <- function(algorithm = "phenopath",
                   dpt = fit_dpt(exprs_mat),
                   monocle2 = fit_monocle2(exprs_mat),
                   tscan = fit_tscan(exprs_mat),
-                  wishbone = fit_wishbone(exprs_mat))  
+                  wishbone = fit_wishbone(exprs_mat, sce))  
   }
   output_df <- data.frame(pst = pst)
   write.csv(output_df, output_file)
