@@ -1,4 +1,7 @@
-
+"""
+Note to self: qvals (just "differential expression")
+is done with limma
+"""
 
 Ns = [200, 500]
 Gs = [500]
@@ -74,15 +77,16 @@ z_init = z_inits, elbo_tol = elbo_tols, tau_alpha = tau_alphas, ab_beta_ratio = 
 
 rule all:
     input:
+        pseudotimes_no_pp
         # phenopath_fdata,
-        "data/simulations/all_pseudotime_correlations.csv",
-        dex_qvals,
-        "data/simulations/roc.csv",
-        "data/simulations/roc_deseq.csv",
-        "data/simulations/roc_phenopath.csv",
-        dex_qvals_mast,
-        "data/simulations/roc_mast.csv",
-        "data/simulations/roc_monocle.csv",
+        # "data/simulations/all_pseudotime_correlations.csv",
+        # dex_qvals,
+        # "data/simulations/roc.csv",
+        # "data/simulations/roc_deseq.csv",
+        # "data/simulations/roc_phenopath.csv",
+        # dex_qvals_mast,
+        # "data/simulations/roc_mast.csv",
+        # "data/simulations/roc_monocle.csv",
         # linear_psts,
         # linear_coefs,
         # "figs/mast.png"
@@ -90,7 +94,7 @@ rule all:
         # "figs/hvg.png",
         # shalek_pseudotimes,
         # "figs/supp_shalek_pca.png",
-        init_hyper_pseudotimes
+        # init_hyper_pseudotimes
         #"data/init_and_hypers/control.csv"
         #"figs/supp_robustness_to_init_hyper.png"
 
