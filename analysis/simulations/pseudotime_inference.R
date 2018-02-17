@@ -4,6 +4,7 @@ library(dpt)
 library(monocle)
 library(TSCAN)
 library(aargh)
+library(reticulate)
 
 fit_phenopath <- function(exprs_mat, x) {
   fit <- phenopath(t(exprs_mat), x)
@@ -34,6 +35,34 @@ fit_tscan <- function(exprs_mat) {
   tscan_pst
 }
 
+fit_wishbone <- function(exprs_mat) {
+  wishbone <- import('wishbone')
+  csv_file <- tempfile()
+  write.csv(t(exprs_mat), csv_file, row.names = TRUE)
+  scdata <- wishbone$wb$SCData$from_csv(csv_file,
+                                        data_type = 'sc-seq',
+                                        normalize = FALSE)
+  scdata$run_pca()
+  # scdata$run_tsne()
+  scdata$run_diffusion_map()
+  wb <- wishbone$wb$Wishbone(scdata)
+  
+  root_cell <- colnames(sce)[which.min(pData(sce)$pst)]
+  
+  nwp <- as.integer(25)
+  kk <- as.integer(25)
+  
+  wb$run_wishbone(
+    start_cell = root_cell,
+    branch = TRUE,
+    k = kk,
+    num_waypoints = nwp
+  )
+  
+  wishbone_pst <- wb$trajectory$as_matrix()
+  wishbone_pst
+}
+
 
 pseudotime_inference <- function(algorithm = "phenopath",
                                  input_file = "sceset.rds",
@@ -60,7 +89,8 @@ pseudotime_inference <- function(algorithm = "phenopath",
                   phenopath = fit_phenopath(exprs_mat, sce$x),
                   dpt = fit_dpt(exprs_mat),
                   monocle2 = fit_monocle2(exprs_mat),
-                  tscan = fit_tscan(exprs_mat))  
+                  tscan = fit_tscan(exprs_mat),
+                  wishbone = fit_wishbone(exprs_mat))  
   }
   output_df <- data.frame(pst = pst)
   write.csv(output_df, output_file)

@@ -4,7 +4,7 @@ Ns = [200, 500]
 Gs = [500]
 prop_interactions = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5]
 reps = 40
-algorithms_no_pp = ["dpt", "monocle2", "tscan"]
+algorithms_no_pp = ["dpt", "monocle2", "tscan", "wishbone"]
 noises = ["low", "high"]
 
 sig_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}",
@@ -75,14 +75,14 @@ z_init = z_inits, elbo_tol = elbo_tols, tau_alpha = tau_alphas, ab_beta_ratio = 
 rule all:
     input:
         # phenopath_fdata,
-        # "data/simulations/all_pseudotime_correlations.csv",
-        # dex_qvals,
-        # "data/simulations/roc.csv",
-        # "data/simulations/roc_deseq.csv",
-        # "data/simulations/roc_phenopath.csv",
-        # dex_qvals_mast,
-        # "data/simulations/roc_mast.csv",
-        # "data/simulations/roc_monocle.csv",
+        "data/simulations/all_pseudotime_correlations.csv",
+        dex_qvals,
+        "data/simulations/roc.csv",
+        "data/simulations/roc_deseq.csv",
+        "data/simulations/roc_phenopath.csv",
+        dex_qvals_mast,
+        "data/simulations/roc_mast.csv",
+        "data/simulations/roc_monocle.csv",
         # linear_psts,
         # linear_coefs,
         # "figs/mast.png"
