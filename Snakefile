@@ -9,6 +9,9 @@ export RETICULATE_PYTHON=/apps/well/python/3.4.3/bin/
 (or to similar python3 location)
 before running this for the wishbone analysis
 !!!!!
+
+If you run into wishbone trouble an example can be made with
+snakemake data/simulations/pseudotimes/pseudofit_N_200_G_500_p_0.5_rep_1_noise_high_alg_wishbone.csv
 """
 
 Ns = [200, 500]
@@ -88,11 +91,14 @@ rule all:
         pseudotimes_no_pp
         # phenopath_fdata,
         # "data/simulations/all_pseudotime_correlations.csv",
-        # dex_qvals,
+        dex_qvals,
+        dex_qvals_mast,
+        dex_qvals_deseq2,
+        dex_qvals_monocle
         # "data/simulations/roc.csv",
         # "data/simulations/roc_deseq.csv",
         # "data/simulations/roc_phenopath.csv",
-        # dex_qvals_mast,
+
         # "data/simulations/roc_mast.csv",
         # "data/simulations/roc_monocle.csv",
         # linear_psts,
@@ -218,7 +224,7 @@ rule parse_pseudotime_results:
     shell:
         "Rscript analysis/simulations/compare_pseudotimes.R --output_file {output}"
 
-rule differential_expression:
+rule differential_expression_limma:
     input:
         pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}.csv",
         sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}.rds"
