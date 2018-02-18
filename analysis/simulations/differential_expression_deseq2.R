@@ -38,6 +38,7 @@ dex_analysis_deseq2 <- function(input_sceset = "sce.rds",
     error = function(cond) {
       return(rep(NA, nrow(sce)))
     })
+  }
     
   output_data_frame <- data_frame(qval = interaction_qval)
   write_csv(output_data_frame, output_file)
