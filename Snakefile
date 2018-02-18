@@ -88,7 +88,7 @@ z_init = z_inits, elbo_tol = elbo_tols, tau_alpha = tau_alphas, ab_beta_ratio = 
 
 rule all:
     input:
-        pseudotimes_no_pp
+        pseudotimes_no_pp,
         # phenopath_fdata,
         # "data/simulations/all_pseudotime_correlations.csv",
         dex_qvals,
