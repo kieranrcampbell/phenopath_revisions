@@ -30,7 +30,7 @@ pseudotime_inference <- function(input_file = "sceset.rds",
                           new_prop_zero,
                           proportion_set_to_zero)
   
-  write_csv(output_df, output_file)
+  write.csv(output_df, output_file)
   
 
 }
