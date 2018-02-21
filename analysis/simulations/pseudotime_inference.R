@@ -49,7 +49,7 @@ fit_wishbone <- function(exprs_mat, sce) {
   scdata$run_diffusion_map(knn = as.integer(n/4))
   wb <- wishbone$wb$Wishbone(scdata)
   
-  root_cell <- colnames(sce)[which.min((pData(sce)$pst))]
+  root_cell <- colnames(sce)[which.min(sample(pData(sce)$pst))]
   
   nwp <- as.integer(round(n/5))
   kk <- as.integer(round(n/5))
