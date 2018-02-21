@@ -18,6 +18,7 @@ dex_analysis_monocle <- function(input_sceset = "sce.rds",
     interaction_qval <- rep(NA, nrow(sce))
   } else {
     
+    pseudotime <- scale(pseudotime_df$pst)[,1]
     cells_non_na <- which(!is.na(pseudotime))
     
     sce$pseudotime <- pseudotime
