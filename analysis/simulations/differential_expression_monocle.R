@@ -10,12 +10,11 @@ dex_analysis_monocle <- function(input_sceset = "sce.rds",
                          output_file = "qvals.csv",
                          random = 0) {
   
+  interaction_qval <- NULL
   sce <- readRDS(input_sceset)
   pseudotime_df <- read_csv(pseudotime_file)
-  pseudotime <- scale(pseudotime_df$pst)[,1]
   
-  interaction_qval <- NULL
-  if(all(is.na(pseudotime))) {
+  if(all(is.na(pseudotime_df$pst))) {
     interaction_qval <- rep(NA, nrow(sce))
   } else {
     

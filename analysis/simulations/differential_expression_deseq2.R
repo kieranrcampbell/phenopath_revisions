@@ -9,15 +9,15 @@ dex_analysis_deseq2 <- function(input_sceset = "sce.rds",
                          pseudotime_file = "pseudotime.csv",
                          output_file = "qvals.csv") {
   
+  interaction_qval <- NULL
   sce <- readRDS(input_sceset)
   pseudotime_df <- read_csv(pseudotime_file)
-  pseudotime <- scale(pseudotime_df$pst)[,1]
   
-  interaction_qval <- NULL
-  if(all(is.na(pseudotime))) {
+  if(all(is.na(pseudotime_df$pst))) {
     interaction_qval <- rep(NA, nrow(sce))
   } else {
-      
+    pseudotime <- scale(pseudotime_df$pst)[,1]
+
     cells_non_na <- which(!is.na(pseudotime))
     
     sce$pseudotime <- pseudotime
