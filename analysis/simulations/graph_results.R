@@ -18,9 +18,9 @@ ggplot(df_split, aes(x = as.factor(100 * p),
 
 
 dfg <- group_by(df_split, N, G, p, alg, noise) %>% 
-  summarise(mean_correlation = median(kendall_correlation),
-            lower = quantile(kendall_correlation, 0.25),
-            upper = quantile(kendall_correlation, 0.75))
+  summarise(mean_correlation = median(kendall_correlation, na.rm = TRUE),
+            lower = quantile(kendall_correlation, 0.25, na.rm = TRUE),
+            upper = quantile(kendall_correlation, 0.75, na.rm = TRUE))
 
 alg_from <- c("dpt", "monocle2", "phenopath", "tscan")
 alg_to <- c("DPT", "Monocle 2", "PhenoPath", "TSCAN")

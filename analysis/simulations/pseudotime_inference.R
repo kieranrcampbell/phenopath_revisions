@@ -45,12 +45,12 @@ fit_wishbone <- function(exprs_mat, sce) {
                                         normalize = FALSE)
   scdata$run_pca()
   # scdata$run_tsne()
-  scdata$run_diffusion_map()
+  n <- ncol(exprs_mat)
+  scdata$run_diffusion_map(knn = as.integer(n/4))
   wb <- wishbone$wb$Wishbone(scdata)
   
   root_cell <- colnames(sce)[which.min(pData(sce)$pst)]
   
-  n <- ncol(exprs_mat)
   nwp <- as.integer(round(n/5))
   kk <- as.integer(round(n/5))
   
@@ -58,15 +58,18 @@ fit_wishbone <- function(exprs_mat, sce) {
     {
     wb$run_wishbone(
       start_cell = root_cell,
-      branch = TRUE,
+      branch = FALSE,
       k = kk,
-      num_waypoints = nwp
+      num_waypoints = nwp,
+      components_list = c(1,2)
     )
     wishbone_pst <- wb$trajectory$as_matrix()
     wishbone_pst
     }, error = function(e) {
+      message(e)
       rep(NA, n)
     })
+  # plot(sce$pst, wishbone_pst)
   wishbone_pst
 }
 
