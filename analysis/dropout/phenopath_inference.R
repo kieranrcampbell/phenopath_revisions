@@ -14,6 +14,9 @@ pseudotime_inference <- function(input_file = "sceset.rds",
   sce <- readRDS(input_file)
   exprs_mat <- exprs(sce)
   
+  non_zero_counts <- rowMeans(exprs_mat) > 0
+  exprs_mat <- exprs_mat[non_zero_counts,]
+  
   fit <- fit_phenopath(exprs_mat, sce$x)
   pst <- trajectory(fit)
 
