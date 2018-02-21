@@ -1,8 +1,5 @@
 
 library(phenopath)
-library(dpt)
-library(monocle)
-library(TSCAN)
 library(aargh)
 library(reticulate)
 
@@ -12,12 +9,14 @@ fit_phenopath <- function(exprs_mat, x) {
 }
 
 fit_dpt <- function(exprs_mat) {
+  library(dpt)
   pt <- Transitions(t(exprs_mat))
   DPT <- dpt(pt, branching = FALSE)
   DPT$DPT
 }
 
 fit_monocle2 <- function(exprs_mat) {
+  library(monocle)
   cds <- newCellDataSet(exprs_mat)
   sizeFactors(cds) <- rep(1, ncol(cds))
   cds <- setOrderingFilter(cds, rownames(exprs_mat))
@@ -27,6 +26,7 @@ fit_monocle2 <- function(exprs_mat) {
 }
 
 fit_tscan <- function(exprs_mat) {
+  library(TSCAN)
   tscan_pst <- rep(NA, ncol(exprs_mat))
   cl_data <- exprmclust(exprs_mat)
   tscan_order <- TSCANorder(cl_data, orderonly = FALSE)
@@ -49,7 +49,7 @@ fit_wishbone <- function(exprs_mat, sce) {
   scdata$run_diffusion_map(knn = as.integer(n/4))
   wb <- wishbone$wb$Wishbone(scdata)
   
-  root_cell <- colnames(sce)[which.min(pData(sce)$pst)]
+  root_cell <- colnames(sce)[which.min((pData(sce)$pst))]
   
   nwp <- as.integer(round(n/5))
   kk <- as.integer(round(n/5))
