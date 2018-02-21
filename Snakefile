@@ -90,7 +90,7 @@ rule all:
     input:
         pseudotimes_no_pp,
         # phenopath_fdata,
-        # "data/simulations/all_pseudotime_correlations.csv",
+        "data/simulations/all_pseudotime_correlations.csv",
         dex_qvals,
         dex_qvals_mast,
         dex_qvals_deseq2,
