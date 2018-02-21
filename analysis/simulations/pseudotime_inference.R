@@ -2,6 +2,7 @@
 library(phenopath)
 library(aargh)
 library(reticulate)
+library(Biobase)
 
 fit_phenopath <- function(exprs_mat, x) {
   fit <- phenopath(t(exprs_mat), x)
