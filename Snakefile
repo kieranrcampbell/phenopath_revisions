@@ -131,7 +131,7 @@ rule simulate_dropout:
     input:
         "data/dropout/tec_sceset_qc.rds"
     output:
-        "data/dropout/scesets/sceset_ad_{ad}_rep_{rep}.rds"
+        dropout_scesets
     shell:
         "Rscript analysis/dropout/simulate_dropout.R"
 
