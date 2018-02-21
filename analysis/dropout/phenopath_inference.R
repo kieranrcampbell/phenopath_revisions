@@ -25,7 +25,7 @@ pseudotime_inference <- function(input_file = "sceset.rds",
   proportion_set_to_zero <- sce$proportion_set_to_zero
   
   output_df <- data.frame(input_sceset = input_file,
-                          kendall_correlation = abs_kendal,
+                          kendall_correlation = abs_kendall,
                           original_prop_zero,
                           new_prop_zero,
                           proportion_set_to_zero)
