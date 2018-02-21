@@ -94,13 +94,13 @@ rule all:
         dex_qvals,
         dex_qvals_mast,
         dex_qvals_deseq2,
-        dex_qvals_monocle
+        dex_qvals_monocle,
         "data/simulations/roc.csv",
         "data/simulations/roc_deseq.csv",
         # "data/simulations/roc_phenopath.csv",
 
         "data/simulations/roc_mast.csv",
-        "data/simulations/roc_monocle.csv",
+        "data/simulations/roc_monocle.csv"
         # linear_psts,
         # linear_coefs,
         # "figs/mast.png"
