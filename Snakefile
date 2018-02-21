@@ -74,6 +74,18 @@ shalek_pseudotimes = expand("data/shalek_cor/pseudotime_hvg_{hvg_shalek}_alg_{hv
                             hvg_shalek = hvgs_shalek, 
                             hvg_shalek_algorithm = shalek_algs)
 
+# Dropout stuff ---
+
+dropout_reps = list(range(1, 41))
+additional_dropout = [0.05, 0.1, 0.2, 0.5]
+
+dropout_scesets = expand("data/dropout/scesets/sceset_ad_{ad}_rep_{rep}.rds",
+ad = additional_dropout, rep = dropout_reps)
+
+dropout_phenopath_cors = expand("data/dropout/phenopath_cors/phenopath_cor_{ad}_rep_{rep}.csv",
+ad = additional_dropout, rep = dropout_reps)
+
+
 
 # Init and hyper stuff -----
 
@@ -100,7 +112,8 @@ rule all:
         # "data/simulations/roc_phenopath.csv",
 
         "data/simulations/roc_mast.csv",
-        "data/simulations/roc_monocle.csv"
+        "data/simulations/roc_monocle.csv",
+        dropout_phenopath_cors
         # linear_psts,
         # linear_coefs,
         # "figs/mast.png"
@@ -111,6 +124,24 @@ rule all:
         # init_hyper_pseudotimes
         #"data/init_and_hypers/control.csv"
         #"figs/supp_robustness_to_init_hyper.png"
+
+# Dropout
+
+rule simulate_dropout:
+    input:
+        "data/dropout/tec_sceset_qc.rds"
+    output:
+        "data/dropout/scesets/sceset_ad_{ad}_rep_{rep}.rds"
+    shell:
+        "Rscript analysis/dropout/simulate_dropout.R"
+
+rule fit_phenopath_dropout:
+    input:
+        "data/dropout/scesets/sceset_ad_{ad}_rep_{rep}.rds"
+    output:
+        "data/dropout/phenopath_cors/phenopath_cor_{ad}_rep_{rep}.csv"
+    shell:
+        "Rscript analysis/dropout/phenopath_inference.R --input_file {input} --output_file {output}"
 
 
 # PCA plot

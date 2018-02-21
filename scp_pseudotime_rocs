@@ -1,0 +1,2 @@
+scp rescomp1:/well/yau/kieranc/phenopath_revisions/data/simulations/roc* data/simulations/
+scp rescomp1:/well/yau/kieranc/phenopath_revisions/data/simulations/all_pseudotime_correlations.csv data/simulations/
