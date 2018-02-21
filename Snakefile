@@ -77,7 +77,7 @@ shalek_pseudotimes = expand("data/shalek_cor/pseudotime_hvg_{hvg_shalek}_alg_{hv
 # Dropout stuff ---
 
 dropout_reps = list(range(1, 41))
-additional_dropout = [0.05, 0.1, 0.2, 0.5]
+additional_dropout = [0.05, 0.1, 0.2, 0.5, 0.8]
 
 dropout_scesets = expand("data/dropout/scesets/sceset_ad_{ad}_rep_{rep}.rds",
 ad = additional_dropout, rep = dropout_reps)
