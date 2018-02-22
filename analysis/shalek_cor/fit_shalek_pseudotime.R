@@ -4,8 +4,6 @@ library(readr)
 library(dplyr)
 library(aargh)
 library(matrixStats)
-library(TSCAN)
-library(dpt)
 library(reticulate)
 
 fit_phenopath <- function(exprs_mat, x, pst_init = 1) {
@@ -25,12 +23,14 @@ fit_monocle2 <- function(exprs_mat) {
 
 
 fit_dpt <- function(exprs_mat) {
+  library(dpt)
   pt <- Transitions(t(exprs_mat))
   DPT <- dpt(pt, branching = FALSE)
   DPT$DPT
 }
 
 fit_tscan <- function(exprs_mat) {
+  library(TSCAN)
   tscan_pst <- rep(NA, ncol(exprs_mat))
   cl_data <- exprmclust(exprs_mat)
   tscan_order <- TSCANorder(cl_data, orderonly = FALSE)
