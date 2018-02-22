@@ -22,8 +22,8 @@ dfg <- group_by(df_split, N, G, p, alg, noise) %>%
             lower = quantile(kendall_correlation, 0.25, na.rm = TRUE),
             upper = quantile(kendall_correlation, 0.75, na.rm = TRUE))
 
-alg_from <- c("dpt", "monocle2", "phenopath", "tscan")
-alg_to <- c("DPT", "Monocle 2", "PhenoPath", "TSCAN")
+alg_from <- c("dpt", "monocle2", "phenopath", "tscan", "wishbone")
+alg_to <- c("DPT", "Monocle 2", "PhenoPath", "TSCAN", "Wishbone")
 
 dfg$alg <- plyr::mapvalues(dfg$alg, from = alg_from, to = alg_to)
 
@@ -89,8 +89,8 @@ dfg <- group_by(aucs, N, G, p, alg, DE_alg, noise) %>%
             lower = quantile(auc, 0.25),
             upper = quantile(auc, 0.75))
 
-alg_from <- c("dpt", "monocle2", "phenopath", "tscan")
-alg_to <- c("DPT", "Monocle 2", "PhenoPath", "TSCAN")
+alg_from <- c("dpt", "monocle2", "phenopath", "tscan", "wishbone")
+alg_to <- c("DPT", "Monocle 2", "PhenoPath", "TSCAN", "Wishbone")
 
 dfg$alg <- plyr::mapvalues(dfg$alg, from = alg_from, to = alg_to)
 

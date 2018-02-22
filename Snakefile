@@ -67,7 +67,7 @@ hvg_pseudotimes = expand("data/hvg/pseudotime_{hvg_dset}_{hvg}_{hvg_algorithm}.c
                         hvg_dset = hvg_datasets, hvg = hvgs, hvg_algorithm = hvg_algorithms)
 
 hvgs_shalek = ["500", "1000", "2000", "4000", "8000"]
-shalek_algs = ["dpt", "monocle2", "tscan", "phenopath_init_pc1"]
+shalek_algs = ["dpt", "monocle2", "tscan", "phenopath_init_pc1", "wishbone"]
 
 
 shalek_pseudotimes = expand("data/shalek_cor/pseudotime_hvg_{hvg_shalek}_alg_{hvg_shalek_algorithm}.csv",
@@ -100,7 +100,8 @@ z_init = z_inits, elbo_tol = elbo_tols, tau_alpha = tau_alphas, ab_beta_ratio = 
 
 rule all:
     input:
-        dropout_phenopath_cors
+        shalek_pseudotimes
+        # dropout_phenopath_cors
         # pseudotimes_no_pp,
         # # phenopath_fdata,
         # "data/simulations/all_pseudotime_correlations.csv",
@@ -119,7 +120,6 @@ rule all:
         # "figs/mast.png"
         # hvg_pseudotimes,
         # "figs/hvg.png",
-        # shalek_pseudotimes,
         # "figs/supp_shalek_pca.png",
         # init_hyper_pseudotimes
         #"data/init_and_hypers/control.csv"
