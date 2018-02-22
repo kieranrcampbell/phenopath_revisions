@@ -100,6 +100,7 @@ z_init = z_inits, elbo_tol = elbo_tols, tau_alpha = tau_alphas, ab_beta_ratio = 
 
 rule all:
     input:
+        dropout_phenopath_cors
         # pseudotimes_no_pp,
         # # phenopath_fdata,
         # "data/simulations/all_pseudotime_correlations.csv",
@@ -110,10 +111,9 @@ rule all:
         # "data/simulations/roc.csv",
         # "data/simulations/roc_deseq.csv",
         # # "data/simulations/roc_phenopath.csv",
-
+        #
         # "data/simulations/roc_mast.csv",
         # "data/simulations/roc_monocle.csv",
-        dropout_phenopath_cors
         # linear_psts,
         # linear_coefs,
         # "figs/mast.png"
