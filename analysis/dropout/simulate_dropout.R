@@ -199,7 +199,7 @@ pi <- 0.2
 reps <- 40
 # noises <- c("low", "high")
 noise <- "high"
-additional_dropout <- c(0.05, 0.1, 0.2, 0.5, 0.8)
+additional_dropout <- c(0.05, 0.1, 0.2, 0.5, 0.8, 0.9)
 
 for(r in seq_len(reps)) {
   for(ad in additional_dropout) {

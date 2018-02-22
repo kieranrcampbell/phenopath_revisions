@@ -77,7 +77,7 @@ shalek_pseudotimes = expand("data/shalek_cor/pseudotime_hvg_{hvg_shalek}_alg_{hv
 # Dropout stuff ---
 
 dropout_reps = list(range(1, 41))
-additional_dropout = [0.05, 0.1, 0.2, 0.5, 0.8]
+additional_dropout = [0.05, 0.1, 0.2, 0.5, 0.8, 0.9]
 
 dropout_scesets = expand("data/dropout/scesets/sceset_ad_{ad}_rep_{rep}.rds",
 ad = additional_dropout, rep = dropout_reps)
@@ -100,19 +100,19 @@ z_init = z_inits, elbo_tol = elbo_tols, tau_alpha = tau_alphas, ab_beta_ratio = 
 
 rule all:
     input:
-        pseudotimes_no_pp,
-        # phenopath_fdata,
-        "data/simulations/all_pseudotime_correlations.csv",
-        dex_qvals,
-        dex_qvals_mast,
-        dex_qvals_deseq2,
-        dex_qvals_monocle,
-        "data/simulations/roc.csv",
-        "data/simulations/roc_deseq.csv",
-        # "data/simulations/roc_phenopath.csv",
+        # pseudotimes_no_pp,
+        # # phenopath_fdata,
+        # "data/simulations/all_pseudotime_correlations.csv",
+        # dex_qvals,
+        # dex_qvals_mast,
+        # dex_qvals_deseq2,
+        # dex_qvals_monocle,
+        # "data/simulations/roc.csv",
+        # "data/simulations/roc_deseq.csv",
+        # # "data/simulations/roc_phenopath.csv",
 
-        "data/simulations/roc_mast.csv",
-        "data/simulations/roc_monocle.csv",
+        # "data/simulations/roc_mast.csv",
+        # "data/simulations/roc_monocle.csv",
         dropout_phenopath_cors
         # linear_psts,
         # linear_coefs,
