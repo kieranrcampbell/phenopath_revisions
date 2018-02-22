@@ -102,7 +102,7 @@ fit_shalek_pseudotime <- function(input_sceset = "input.rds",
                        monocle2 = fit_monocle2(exprs(sce_hvg)),
                        dpt = fit_dpt(exprs(sce_hvg)),
                        tscan = fit_tscan(exprs(sce_hvg)),
-                       wishbone = fit_wishbone(exprs(sce_hvg)))
+                       wishbone = fit_wishbone(exprs(sce_hvg), sce_hvg))
   
   sample_name = paste0("sample_", seq_len(ncol(sce_hvg)))
   
