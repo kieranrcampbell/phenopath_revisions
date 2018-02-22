@@ -1,6 +1,5 @@
 library(scater)
 library(phenopath)
-library(monocle)
 library(readr)
 library(dplyr)
 library(aargh)
@@ -15,6 +14,7 @@ fit_phenopath <- function(exprs_mat, x, pst_init = 1) {
 }
 
 fit_monocle2 <- function(exprs_mat) {
+  library(monocle)
   cds <- newCellDataSet(exprs_mat)
   sizeFactors(cds) <- rep(1, ncol(cds))
   cds <- setOrderingFilter(cds, rownames(exprs_mat))
