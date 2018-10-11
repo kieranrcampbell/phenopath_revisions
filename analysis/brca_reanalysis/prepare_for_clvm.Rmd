@@ -1,0 +1,209 @@
+---
+title: "Preparation of BRCA SCESet for phenotime"
+author: "Kieran Campbell"
+date: "March 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, cache = FALSE)
+
+library(scater)
+library(tidyverse)
+library(magrittr)
+library(matrixStats)
+library(biomaRt)
+library(curl)
+library(mclust)
+
+scale_vec <- function(x) (x - mean(x)) / sd(x)
+```
+
+
+```{r data-prep, cache = FALSE}
+sce <- readRDS("../../data/BRCA/sce_brca.rds")
+sampleNames(sce) <- sampleNames(assayData(sce))
+sce <- sce[matrixStats::rowVars(exprs(sce)) > 0, ]
+is_exprs(sce) <- exprs(sce) > 0
+sce <- calculateQCMetrics(sce)
+
+hgnc_symbols <- sapply(strsplit(featureNames(sce), "_"), `[`, 2)
+
+dvar <- data_frame(var_exprs = matrixStats::rowVars(exprs(sce)),
+                   hgnc_symbols)
+
+fData(sce)$var_exprs <- dvar$var_exprs
+fData(sce)$hgnc_symbols <- hgnc_symbols
+
+## group factors to avoid low frequency ones
+gt_table <- table(fData(sce)$gene_type)
+new_gt_names <- names(gt_table)
+new_gt_names[gt_table < 50] <- "other"
+fData(sce)$short_gene_type <- plyr::mapvalues(fData(sce)$gene_type,
+                                             from = names(gt_table),
+                                             to = new_gt_names)
+sce <- sce[fData(sce)$n_cells_exprs > 0, ]
+```
+
+Remove missing status:
+
+```{r remove-na}
+to_keep <- !(is.na(sce$ER_status) | is.na(sce$PR_status))
+sce <- sce[, to_keep]
+```
+
+Construct a gene level SCESet:
+
+```{r to-gene-level}
+sce_gene <- summariseExprsAcrossFeatures(sce,
+                              summarise_by = "ensembl_gene_id")
+```
+
+Remove "sce" for memory sake:
+
+```{r remove-sce}
+rm(sce)
+```
+
+Download relevant data:
+
+```{r download-data}
+fData(sce_gene)$ensembl_gene_id <- fData(sce_gene)$exprs_collapsed_to
+
+fData(sce_gene)$ensembl_gene_id <- gsub(fData(sce_gene)$ensembl_gene_id, pattern = "\\.[0-9]+", replacement = "")
+
+ensembl_gene_id <- fData(sce_gene)$ensembl_gene_id
+
+annotation_file <- "../../data/BRCA/gene_annotations.csv"
+
+if(file.exists(annotation_file)) { # do nothing
+  gene_annos <- read_csv(annotation_file)
+} else if(has_internet()) {
+  mart <- useMart(biomart = 'ensembl', 
+          dataset = 'hsapiens_gene_ensembl')
+  gene_annos <- getBM(mart = mart, 
+                         filters = "ensembl_gene_id",
+                         attributes = c("ensembl_gene_id",
+                                        "hgnc_symbol",
+                                        "transcript_biotype"),
+              values = ensembl_gene_id)
+
+  write_csv(gene_annos, annotation_file)
+} else {
+  stop("Annotation file missing and ")
+}
+
+mm <- match(ensembl_gene_id, gene_annos$ensembl_gene_id)
+non_na_mm <- which(!is.na(mm))
+mm <- mm[non_na_mm]
+
+gene_annos <- gene_annos[mm, ]
+sce_gene <- sce_gene[non_na_mm, ]
+
+
+## Now add them in to the fData
+stopifnot(all.equal(fData(sce_gene)$ensembl_gene_id,
+                    gene_annos$ensembl_gene_id))
+
+for(nn in names(gene_annos)) {
+  fData(sce_gene)[[nn]] <- gene_annos[[nn]]
+}
+
+featureNames(sce_gene) <- paste0(fData(sce_gene)$hgnc_symbol, "_", fData(sce_gene)$ensembl_gene_id)
+
+```
+
+Save:
+
+```{r save-sce-gene}
+# saveRDS(sce_gene, file = "../../data/BRCA/sce_brca_gene_level.rds")
+```
+
+```{r add-meta}
+pseudogenes <- grepl("pseudogene", fData(sce_gene)$transcript_biotype)
+not_pseudogene <- which(!pseudogenes)
+
+sce_gene <- sce_gene[not_pseudogene, ]
+sce_gene <- calculateQCMetrics(sce_gene)
+```
+
+Make x:
+
+```{r make-x}
+sce_gene$x <- scale_vec(1 * (sce_gene$ER_status  == 'positive'))
+```
+
+Select high variance genes:
+
+```{r select-high-variance}
+library(matrixStats)
+var_exprs <- rowVars(exprs(sce_gene))
+mad_exprs <- rowMads(exprs(sce_gene))
+mean_exprs <- rowMeans(exprs(sce_gene))
+
+to_use <-  var_exprs > 1 & mad_exprs > 0
+
+sce <- sce_gene[to_use, ]
+```
+
+We need some QC to remove outlier cells:
+
+```{r qc}
+sce <- plotPCA(sce, ntop = nrow(sce), return_SCESet = TRUE, ncomponents = 3)
+
+set.seed(123L)
+mc <- Mclust(redDim(sce)[,c(1,3)], G = 2)
+sce$cluster <- mc$classification
+sce$Cluster <- factor(mc$classification)
+
+plotReducedDim(sce, colour_by = 'Cluster', ncomponents = 3)
+
+pca_plot <- last_plot()
+saveRDS(pca_plot, file = "../../data/BRCA/brca_pca_plot.rds")
+
+to_keep_index <- which.max(table(sce$cluster))
+samples_to_keep <- which(sce$cluster == to_keep_index)
+
+# samples_to_keep <- sce$pct_exprs_top_100_features < 2.4
+
+sce <- sce[, samples_to_keep]
+sce_gene <- sce_gene[, samples_to_keep]
+```
+
+Finally let's remove samples with indeterminate ER or PR status:
+
+```{r remove-indeterminate, eval = FALSE}
+status_defined <- sce$ER_status != 'indeterminate' &
+  sce$PR_status != 'indeterminate'
+
+sce <- sce[, status_defined]
+sce_gene <- sce_gene[, status_defined]
+```
+
+# Triple negative vs rest
+
+```{r trip-neg, eval = FALSE}
+
+is_triple_neg <- sce$ER_status == "negative" & sce$PR_status == "negative" &
+  sce$IHC_HER2 == "Negative"
+
+is_triple_neg[is.na(is_triple_neg)] <- FALSE
+
+sce$is_triple_neg <- scale_vec(1 * is_triple_neg)
+```
+
+```{r er-pos, eval = FALSE}
+# sce@logged <- TRUE
+# sce@useForExprs <- "exprs"
+sce_er_pos <- sce[, sce$ER_status == "positive"]
+sce_er_pos$x <- scale_vec(sce_er_pos$PR_status == "positive")
+```
+
+And save the result:
+
+```{r save-tumour-gene}
+sce$x <- scale_vec(1 * (sce$ER_status  == 'positive'))
+saveRDS(sce, file = "../../data/BRCA/sce_brca_clvm.rds")
+# saveRDS(sce_er_pos, file = "../../data/BRCA/sce_brca_clvm_er_pos.rds")
+saveRDS(sce_gene, file = "../../data/BRCA/sce_brca_gene_level.rds")
+```

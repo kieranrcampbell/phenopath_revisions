@@ -1,12 +1,14 @@
 ---
 title: "Immune-MSI interactions in colorectal cancer using Variational Bayes PhenoPath"
 author: "Kieran Campbell"
-date: "February 2017"
+date: "December 2017"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache = FALSE, fig.width = 6, fig.height = 4)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, fig.width = 6, fig.height = 4)
 
 library(scater)
 library(tidyverse)
@@ -165,9 +167,9 @@ What is phenotime? Check the immune response genes:
 immune_genes_all <- read_csv("../../data/COAD/immune_geneset.txt", skip = 2, col_names = FALSE)[[1]]
 immune_genes_all <- c(immune_genes_all, "IL2RB")
 # immune_genes <- c("FOXP3", "CD4", "ZEB1", "IL2RB", "MAFB", "CSF1", "THY1")
-df_immune <- mutate(df_beta, is_immune = gene_symbol %in% immune_genes_all) %>% 
+df_immune <- mutate(df_beta, is_immune = hgnc_symbol %in% immune_genes_all) %>% 
   filter(is_immune)
-genes_to_plot <- arrange(df_immune, desc(c)) %>% head(n = 18) %>% .$gene_symbol
+genes_to_plot <- arrange(df_immune, desc(c)) %>% head(n = 18) %>% .$hgnc_symbol
 genes_to_plot <- c(genes_to_plot, "FOXP3", "IL2RB")
 
 immune_inds <- match(genes_to_plot, rowData(sce)$hgnc_symbol)
@@ -201,7 +203,7 @@ marker_df_2 <- mutate(marker_df, pseudotime_order = rank(phenotime)) %>%
 marker_df_2 <- group_by(marker_df_2, gene) %>% 
   mutate(norm_expression = (expression - mean(expression)) / sd(expression))
 
-marker_df_2$gene <- factor(marker_df_2$gene, levels = colnames(mx)[hc$order])
+# marker_df_2$gene <- factor(marker_df_2$gene, levels = colnames(mx)[hc$order])
 
 ggplot(marker_df_2, aes(x = pseudotime_order, y = gene, fill = norm_expression)) +
          geom_raster() +
@@ -249,7 +251,7 @@ ggplot(df_immune, aes(x = phenotime, y = expression, fill = gene_symbol)) +
         axis.text = element_text(size = 9),
         axis.title = element_text(size = 10))
 
-saveRDS(last_plot(), "../../figs/coad/tregs.rds")
+# saveRDS(last_plot(), "../../figs/coad/tregs.rds")
 
 ```
 
@@ -519,29 +521,30 @@ filter(df_beta, is_sig) %>%
 
 
 ```{r large-plot}
-lsize <- 11
-bottom_left <- plot_grid(plot_grid(NULL, limma_plot, NULL, nrow = 1, rel_widths = c(1,6, 1)), 
-                         goplot,
-                         ncol = 1, labels = c("B", "C"),
-                         label_size = lsize)
-bottom_grid <- plot_grid(bottom_left, gene_plot, nrow = 1, labels = c("", "D"),
-                         label_size = lsize)
-
-p <- plot_grid(lplot, bottom_grid, ncol = 1, 
-               rel_heights = c(2,1.2), labels = c("A",""),
-          label_size = lsize)
-
-print( p )
-
-saveRDS(limma_plot, "../../figs/coad/limma_plot.rds")
-saveRDS(goplot, "../../figs/coad/goplot.rds")
-saveRDS(gene_plot, "../../figs/coad/gene_plot.rds")
-saveRDS(lplot, "../../figs/coad/lplot.rds")
+# lsize <- 11
+# bottom_left <- plot_grid(plot_grid(NULL, limma_plot, NULL, nrow = 1, rel_widths = c(1,6, 1)), 
+#                          goplot,
+#                          ncol = 1, labels = c("B", "C"),
+#                          label_size = lsize)
+# bottom_grid <- plot_grid(bottom_left, gene_plot, nrow = 1, labels = c("", "D"),
+#                          label_size = lsize)
+# 
+# p <- plot_grid(lplot, bottom_grid, ncol = 1, 
+#                rel_heights = c(2,1.2), labels = c("A",""),
+#           label_size = lsize)
+# 
+# print( p )
+# 
+# saveRDS(limma_plot, "../../figs/coad/limma_plot.rds")
+# saveRDS(goplot, "../../figs/coad/goplot.rds")
+# saveRDS(gene_plot, "../../figs/coad/gene_plot.rds")
+# saveRDS(lplot, "../../figs/coad/lplot.rds")
 ```
 
 # Cibertsort
 
 ```{r csort}
+lsize = 12
 csort_raw <- read_tsv("../../data/COAD/cellTypeFractionsAll_new.tsv")
 
 csort <- dplyr::mutate(csort_raw, patient_barcode = tolower(patientBarcode)) %>% 
@@ -582,15 +585,6 @@ ggplot(cdf, aes(x = cell_type, y = correlation_to_z, fill = cell_type)) +
 quantiseq_plot <- last_plot()
 ```
 
-New plot 1:
-
-```{r}
-lsize = 12
-lower_grid <- plot_grid(goplot, quantiseq_plot, labels = c("B", "C"), label_size = lsize)
-
-plot_grid(heatmap, lower_grid, ncol = 1, labels = c("A", ""), label_size = lsize)
-ggsave("../../figs/new/coad_1.png", width = 8, height = 5)
-```
 
 
 Boxplot for Chris:
@@ -634,15 +628,140 @@ New plot 2:
 
 ```{r}
 bottom_grid <- plot_grid(limma_plot, beeswarm_plot, gene_plot, nrow = 1,
-                         labels = c("B", "C", "D"),
+                         labels = c("b", "c", "d"),
                          label_size = lsize)
 
 plot_grid(lplot, bottom_grid, ncol = 1,
-          labels = c("A", ""), label_size = lsize,
+          labels = c("a", ""), label_size = lsize,
           rel_heights = c(2.5,1))
 
-ggsave("../../figs/new/coad_2.png", width = 9, height = 8.5)
+ggsave("../../figs/new/coad_2.png", width = 9, height = 8.5, dpi = 600)
+ggsave("../../figs/new/coad_2.svg", width = 9, height = 8.5)
+```
+
+
+New PCA plot:
+
+```{r}
+sce <- plotPCA(sce, return_SCE = TRUE)
+sce$tmap <- pcavi$m_z
+
+plotPCA(sce, ncomponents = 3, colour_by = "x", rerun = TRUE)
+
+df_pca <- as_data_frame(reducedDim(sce)[,1:2]) %>% 
+  mutate(pseudotime = sce$tmap, msi_status = sce$msi_status == "msi-h")
+
+df_pca$msi_status <- plyr::mapvalues(df_pca$msi_status,
+                                    from = c(FALSE, TRUE),
+                                    to = c("MSI-low", "MSI-high"))
+df_no_msi <- dplyr::select(df_pca, -msi_status)
+
+df_curve <- frame_data(
+  ~ msi_status, ~ x, ~ xend, ~ y, ~ yend, ~ curvature,
+  "MSI-high", 10, -25, 20, 10, 0.1,
+  "MSI-low", 20, -18, -15, -16, -0.1
+)
+
+plt <- ggplot(df_pca, aes(x = PC1, y = PC2)) +
+  geom_point(data = df_no_msi, fill = "grey80", color = "grey80", size = 3) +
+  geom_point(aes(fill = pseudotime), shape = 21, color = 'grey20', size = 3) +
+  scale_fill_viridis(name = "Pseudotime", option = "C") + 
+  facet_wrap(~ msi_status) +
+  theme(legend.position = c(.3,.08),
+        legend.direction = "horizontal") +
+  geom_curve(aes(x = x, y = y, xend = xend, yend = yend),
+             data = filter(df_curve, msi_status == "MSI-low"), color = 'black',
+             curvature = -.2, arrow = arrow(length = unit(0.3, "cm"), type = "open"), 
+             size = 1.5) +
+  geom_curve(aes(x = x, y = y, xend = xend, yend = yend), 
+             data = filter(df_curve, msi_status == "MSI-high"), color = 'black',
+             curvature = .2, arrow = arrow(length = unit(0.3, "cm"), type = "open"), 
+             size = 1.5) +
+  theme(strip.background = element_rect(fill = "grey95", color = "grey30", size = 1),
+        legend.text = element_text(size = 8),
+        axis.text = element_text(size = 9),
+        axis.title = element_text(size = 10),
+        legend.title = element_text(size = 10)) +
+  xlim(-42, 38) + ylim(-22, 22)
 ```
 
 
 
+```{r}
+library(grid)
+genes <- c("CD4", "MLH1", "TGFBR2")
+mm <- match(genes, rowData(sce)$hgnc_symbol)
+gexp <- t(exprs(sce)[mm, ])
+colnames(gexp) <- genes
+gexp_df <- as_data_frame(gexp) %>% 
+  mutate(pseudotime = sce$tmap)
+
+df_bar <- inner_join(df_pca, gexp_df)
+
+classify_cell <- function(row) {
+  if(abs(row['pseudotime']) < 0.3) return(NA)
+  pst_state <- ifelse(row['pseudotime'] < 0, "beginning", "end")
+  paste0(pst_state, "-", row['msi_status'])
+}
+
+df_bar$cell_class <- sapply(seq_len(nrow(df_bar)), function(i) classify_cell(df_bar[i, ]))
+
+df_group <- filter(df_bar, !is.na(cell_class)) %>% 
+  gather(gene, expression, -(PC1:msi_status), -cell_class) %>% 
+  group_by(cell_class, gene) %>% 
+  summarise(mean_expression = mean(expression))
+df_group$gene <- factor(df_group$gene, levels = genes)
+
+plts <- list()
+for(cl in unique(df_group$cell_class)) {
+  plts[[cl]] <- filter(df_group, cell_class == cl) %>% 
+  ggplot(aes(x = gene, y = mean_expression, fill = gene)) +
+  geom_bar(stat = "identity", color = 'grey20') +
+  scale_fill_brewer(palette = "Dark2") +
+  theme(legend.position = "None",
+        axis.title.x = element_blank(),
+        axis.title.y = element_text(size = 8, face = "bold"),
+        axis.text.y = element_text(size = 8),
+        axis.text.x = element_text(size = 8, angle = -90, face = "bold")) +
+  labs(y = "Mean z-score\n expression")
+    ylim(0, 6.5)
+}
+
+width = 0.13
+height = 0.28
+
+pca_plot <- ggdraw() + 
+  draw_plot(plt) +
+  draw_plot(plts[["beginning-MSI-high"]], x = 0.42, y = 0.5, width = width, height = height) +
+  draw_plot(plts[["beginning-MSI-low"]], x = 0.88, y = 0.15, width = width, height = height) +
+  draw_plot(plts[["end-MSI-high"]], x = 0.07, y = 0.3, width = width, height = height) +
+  draw_plot(plts[["end-MSI-low"]], x = 0.53, y = 0.22, width = width, height = height)
+
+
+```
+
+
+
+New plot 1:
+
+```{r}
+lsize = 12
+lower_grid <- plot_grid(goplot, quantiseq_plot, labels = c("c", "d"), label_size = lsize)
+
+plot_grid(pca_plot, heatmap, lower_grid, ncol = 1, labels = c("a", "b", ""), 
+          label_size = lsize, rel_heights = c(2,1,1))
+ggsave("../../figs/new/coad_1.png", width = 8, height = 9, dpi = 600)
+ggsave("../../figs/new/coad_1.svg", width = 8, height = 9)
+```
+
+Save pseudotimes:
+
+```{r}
+df_save <- data_frame(
+  sample_id = colnames(sce),
+  tcga_barcode = colData(sce)$patient_barcode,
+  pseudotime = pcavi$m_z
+)
+
+write_csv(df_save, "../../data/sample_pseudotimes_coad.csv")
+```

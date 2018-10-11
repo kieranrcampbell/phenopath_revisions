@@ -3,10 +3,12 @@ title: "Shalek PhenoPath analysis"
 author: "Kieran Campbell"
 date: "September 2017"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE, cache=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache = FALSE, fig.width = 6, fig.height = 4)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE, fig.width = 6, fig.height = 4)
 
 library(scater)
 library(tidyverse)
@@ -167,7 +169,7 @@ We can plot expression along phenotime for the 35 _significant_ genes:
 
 ```{r exprs-along-pst, fig.width = 12, fig.height = 9}
 tmap <- pcavi$m_z
-
+sce_hvg$tmap <- tmap
 top_genes <- dplyr::filter(df_beta, is_sig) %>% 
   dplyr::arrange(desc(abs(beta))) %>% 
   extract2("gene") %>% head(n=20)
@@ -184,7 +186,7 @@ ggplot(zdf, aes(x = time, y = z, fill = time)) +
   scale_fill_brewer(palette = "Set3") +
   # scale_fill_brewer(palette = "Set1") +
   xlab("Capture time") +
-  ylab("Pseudotime)") +
+  ylab("Pseudotime") +
   theme(axis.text = element_text(size = 8),
         axis.title = element_text(size = 9),
         legend.title = element_text(size = 11),
@@ -193,6 +195,14 @@ ggplot(zdf, aes(x = time, y = z, fill = time)) +
 time_plot <- last_plot()
 ```
 
+What's the $R^2$?
+
+```{r}
+time <- as.numeric(gsub("h", "", sce$time))
+fit <- lm(pcavi$m_z ~ time)
+s <- summary(fit)
+s$r.squared
+```
 
 
 
@@ -284,23 +294,6 @@ plot_over_capture_time <- last_plot()
 # ggsave("../../figs/supplementary_time_shalek.png", width = 6, height = 4)
 ```
 
-We have everything needed for plot 1:
-
-```{r}
-other_pseudotime_comparison_plot <- readRDS("../../figs/shalek_cor.rds")
-lsize = 12
-upper_grid <- plot_grid(time_plot, other_pseudotime_comparison_plot,
-                        rel_widths = c(1,2), labels = c("A", "B"),
-                        label_size = lsize)
-bottom_grid <- plot_grid(plot_over_capture_time, plot_over_pseudotime,
-                         labels = c("C", "D"),
-                         label_size = lsize)
-
-plot_grid(upper_grid, bottom_grid, nrow = 2,
-          rel_heights = c(2,3))
-
-ggsave("../../figs/new/shalek_2.png", width = 9, height = 6)
-```
 
 
 
@@ -349,7 +342,7 @@ ggplot(df_limma, aes(x = beta, y = log10qval, color = is_sig_graph)) +
   scale_color_manual(values = cols2, name = "Interaction") +
   theme(legend.margin = margin(), legend.position = "none")
 
-de_plot <- ggExtra::ggMarginal(last_plot(), margins = "y", type = "histogram", size = 10)
+de_plot <- last_plot() # ggExtra::ggMarginal(last_plot(), margins = "y", type = "histogram", size = 10)
 ```
 
 Again no obvious relationship.
@@ -401,9 +394,12 @@ ggplot(df_beta, aes(x = lambda, y = beta)) +
         legend.text = element_text(size = 10)) +
   geom_text(data = textinfo, aes(x = x, y = y, label = label), 
             color = 'black', size = 3, fontface = "bold")
-lplot <- ggExtra::ggMarginal(last_plot(), margins = "y", type = "histogram", size = 10)
+lplot <- last_plot() #ggExtra::ggMarginal(last_plot(), margins = "y", type = "histogram", size = 10)
 print(lplot)
 ```
+
+
+
 
 # What is pseudotime (2)
 
@@ -470,12 +466,13 @@ ggplot(aes(x = term, y = log10qval)) + #, size = 100 * prop_cat)) +
     ylab(expression(paste("-", log[10], " q-value"))) +
   scale_size(name = "% category\nrepresented") +
     theme(legend.position = "bottom", #c(0.6,0.1),
-          legend.direction = "vertical",
+          legend.direction = "horizontal",
         axis.text = element_text(size = 8),
-        axis.text.y = element_text(size = 7),
+        axis.text.y = element_text(size = 8),
         axis.title = element_text(size = 10),
         legend.title = element_blank(),
-        legend.text = element_text(size = 10)) +
+        legend.text = element_text(size = 10),
+        legend.margin = margin(t = -.3, l = -4.5, unit = "cm")) +
   scale_color_brewer(palette = "Set1") +
   theme(strip.text = element_text(size = 8, face = "bold"),
           strip.background = element_rect(colour = "black", fill = "grey95", 
@@ -485,37 +482,27 @@ goplot <- last_plot()
 ```
 
 
-First plot for new arrangement:
-
-```{r}
-lsize <- 12
-right_grid <- plot_grid(de_plot, goplot, label_size = lsize,
-                         nrow = 2, labels = c("B", "C"))
-main_plot_1 <- plot_grid(lplot, right_grid, labels = c("A", ""), label_size = lsize,
-                         ncol = 2, rel_widths = c(2,1))
-ggsave(plot = main_plot_1, file = "../../figs/new/shalek_1.png", width = 11, height = 6)
-```
 
 
 ```{r large-plot}
-lsize <- 11
-
-bottom_top_left <- plot_grid(time_plot,NULL, de_plot, nrow = 1,
-                                rel_widths = c(7,1,6),
-                                # labels = c("D", "E", ""), 
-                             label_size = lsize)
-
-bottom_left <- plot_grid(bottom_top_left, goplot,
-                         ncol = 1, # labels = c("", "F"),
-                         label_size = lsize)
-
-bottom_grid <- plot_grid(bottom_left, gene_plot, nrow = 1, # labels = c("", "G"),
-                         label_size = lsize, rel_widths = c(5.5,5))
-
-shalek_plot <- plot_grid(lplot, bottom_grid, ncol = 1, rel_heights = c(2,1.5), # labels = c("C",""),
-          label_size = lsize)
-
-ggsave("../../figs/shalek.png", shalek_plot, width = 8, height = 9)
+# lsize <- 11
+# 
+# bottom_top_left <- plot_grid(time_plot,NULL, de_plot, nrow = 1,
+#                                 rel_widths = c(7,1,6),
+#                                 # labels = c("D", "E", ""), 
+#                              label_size = lsize)
+# 
+# bottom_left <- plot_grid(bottom_top_left, goplot,
+#                          ncol = 1, # labels = c("", "F"),
+#                          label_size = lsize)
+# 
+# bottom_grid <- plot_grid(bottom_left, gene_plot, nrow = 1, # labels = c("", "G"),
+#                          label_size = lsize, rel_widths = c(5.5,5))
+# 
+# shalek_plot <- plot_grid(lplot, bottom_grid, ncol = 1, rel_heights = c(2,1.5), # labels = c("C",""),
+#           label_size = lsize)
+# 
+# ggsave("../../figs/shalek.png", shalek_plot, width = 8, height = 9)
 ```
 
 Need a supplementary Mef2c figure
@@ -544,11 +531,20 @@ sce_av <- sce_hvg[rowData(sce_hvg)$anti_viral, ]
 
 scaled_exprs <- scale(t(exprs(sce_av)))
 
-qplot(pcavi$m_z, rowMeans(scaled_exprs), color = xs) +
+ggplot(data_frame(z = pcavi$m_z, y = rowMeans(scaled_exprs), xs),
+       aes(x = z, y = y, fill = xs)) +
+  geom_point(alpha = 0.5, shape = 21) +
   labs(x = "Pseudotime", y = "Antiviral score") +
-  scale_colour_brewer(palette = "Set1", name = "Stimulant")
+  scale_fill_brewer(palette = "Set1", name = "Stimulant")    +
+  theme(legend.position = c(0.05,0.8),
+        legend.direction = "vertical",
+        axis.text = element_text(size = 9),
+        axis.title = element_text(size = 10),
+        legend.title = element_text(size = 10, face = "bold"),
+        legend.text = element_text(size = 10))
 
-ggsave("../../figs/supp_shalek_antiviral_score.png", width = 6, height = 4)
+# ggsave("../../figs/supp_shalek_antiviral_score.png", width = 6, height = 4)
+antiviral_plot <- last_plot()
 ```
 
 # Peaked inflammatory module
@@ -595,6 +591,137 @@ ggsave("../../figs/shalek_violinplot.png", width = 8, height = 4)
 ```
 
 
+New PCA plot:
+
+```{r}
+select <- dplyr::select
+sce_hvg <- plotPCA(sce_hvg, ncomponents = 3, return_SCE = TRUE)
+
+df_pca <- as_data_frame(reducedDim(sce_hvg)[,c(1,3)]) %>% 
+  mutate(pseudotime = sce_hvg$tmap, Stimulant = sce_hvg$stimulant)
+
+df_no_stim <- select(df_pca, -Stimulant)
+
+
+df_curve <- frame_data(
+  ~ Stimulant, ~ x, ~ xend, ~ y, ~ yend, ~ curvature,
+  "LPS", 10, -10, -15, -15, 0.05,
+  "PAM", 15, -5, 0, 15, 0.3
+)
+# df_curve$ER_status <- factor(df_curve$ER_status, levels = df_curve$ER_status)
+
+plt <- ggplot(df_pca, aes(x = PC1, y = PC3)) +
+  geom_point(data = df_no_stim, fill = "grey80", color = "grey80", size = 3) +
+  geom_point(aes(fill = pseudotime), shape = 21, color = 'grey20', size = 3) +
+  scale_fill_viridis(name = "Pseudotime", option = "C") + 
+  facet_wrap(~ Stimulant) +
+  theme(legend.position = c(.4,.08),
+        legend.direction = "horizontal") +
+  geom_curve(aes(x = x, y = y, xend = xend, yend = yend),
+             data = filter(df_curve, Stimulant == "PAM"), color = 'black',
+             curvature = df_curve$curvature[2], arrow = arrow(length = unit(0.3, "cm"), type = "open"), 
+             size = 1.5) +
+  geom_curve(aes(x = x, y = y, xend = xend, yend = yend),
+             data = filter(df_curve, Stimulant == "LPS"), color = 'black',
+             curvature = df_curve$curvature[1], arrow = arrow(length = unit(0.3, "cm"), type = "open"), 
+             size = 1.5) +
+  theme(strip.background = element_rect(fill = "grey95", color = "grey30", size = 1),
+        legend.text = element_text(size = 8),
+        axis.text = element_text(size = 9),
+        axis.title = element_text(size = 10),
+        legend.title = element_text(size = 10)) +
+  xlim(-25, 25) + ylim(-15, 15)
+```
+
+```{r}
+library(grid)
+genes <- c("Cd40", "Tnf", "Mef2c")
+mm <- match(genes, rowData(sce_hvg)$mgi_symbol)
+gexp <- t(exprs(sce_hvg)[mm, ])
+colnames(gexp) <- genes
+gexp_df <- as_data_frame(gexp) %>% 
+  mutate(pseudotime = sce_hvg$tmap)
+
+df_bar <- inner_join(df_pca, gexp_df)
+
+classify_cell <- function(row) {
+  if(row['pseudotime'] < -0.2) return("beginning")
+  if(row['pseudotime'] > 0.18 && row['Stimulant'] == "LPS") return('LPS-end')
+  if(row['pseudotime'] > 0.18 && row['Stimulant'] == "PAM") return("PAM-end")
+  return(NA)
+}
+
+df_bar$cell_class <- sapply(seq_len(nrow(df_bar)), function(i) classify_cell(df_bar[i, ]))
+
+df_group <- filter(df_bar, !is.na(cell_class)) %>% 
+  gather(gene, expression, -(PC1:Stimulant), -cell_class) %>% 
+  group_by(cell_class, gene) %>% 
+  summarise(mean_expression = mean(expression))
+df_group$gene <- factor(df_group$gene, levels = genes)
+
+plts <- list()
+for(cl in unique(df_group$cell_class)) {
+  plts[[cl]] <- filter(df_group, cell_class == cl) %>% 
+  ggplot(aes(x = gene, y = mean_expression, fill = gene)) +
+    geom_bar(stat = "identity", color = 'grey20') +
+    scale_fill_brewer(palette = "Dark2") +
+    theme(legend.position = "None",
+          axis.title.x = element_blank(),
+          axis.title.y = element_text(size = 8, face = "bold"),
+          axis.text.y = element_text(size = 8),
+          axis.text.x = element_text(size = 8, angle = -90, face = "bold")) +
+    labs(y = "Mean z-score\n expression") +
+    ylim(-6, 6)
+}
+
+width = 0.12
+height = 0.3
+
+pca_plot <- ggdraw() + 
+  draw_plot(plt) +
+  draw_plot(plts[["beginning"]], x = 0.41, y = 0.2, width = width, height = height) +
+  draw_plot(plts[["beginning"]], x = 0.88, y = 0.15, width = width, height = height) +
+  draw_plot(plts[["LPS-end"]], x = 0.06, y = 0.105, width = width, height = height) +
+  draw_plot(plts[["PAM-end"]], x = 0.56, y = 0.61, width = width, height = height)
+
+pca_plot
+```
+
+
+First plot for new arrangement:
+
+```{r}
+lsize <- 12
+
+other_pseudotime_comparison_plot <- readRDS("../../figs/shalek_cor.rds")
+middle_grid <- plot_grid(NULL, time_plot, other_pseudotime_comparison_plot, NULL,
+                        rel_widths = c(0.5, 1, 2, 0.5), labels = c("", "b", "c", ""),
+                        label_size = lsize, nrow = 1)
+bottom_grid <- plot_grid(plot_over_capture_time, plot_over_pseudotime, #de_plor,
+                         labels = c("d", "e"),
+                         label_size = lsize)
+
+main_plot_1 <- plot_grid(pca_plot, middle_grid, bottom_grid, labels = c("a", "", ""), label_size = lsize,
+                         ncol = 1, rel_heights = c(3,2,2.5))
+ggsave(plot = main_plot_1, file = "../../figs/new/shalek_1.png", width = 10, height = 10,
+        dpi = 600)
+ggsave(plot = main_plot_1, file = "../../figs/new/shalek_1.svg", width = 10, height = 10)
+```
+
+
+Second plot for new arrangement
+
+```{r}
+
+lower_grid <- plot_grid(de_plot, goplot, antiviral_plot, labels = c("b", "c", "d"),
+                        label_size = lsize, nrow = 1)
+
+plot_grid(lplot, lower_grid, ncol = 1,
+          rel_heights = c(2,1), labels = c("a", ""))
+
+ggsave("../../figs/new/shalek_2.png", width = 10, height = 9, dpi = 600)
+ggsave("../../figs/new/shalek_2.svg", width = 10, height = 9)
+```
 
 # Technical
 
