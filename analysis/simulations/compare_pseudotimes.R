@@ -9,7 +9,10 @@ source("analysis/simulations/parse_funcs.R")
 sim_dir <- file.path("data", "simulations")
 
 correlate_pseudotimes <- function(df_small) {
-  pseudotimes <- read_csv(df_small$path)$pst
+  pseudotimes <- as.numeric(read_csv(df_small$path)$pst)
+  if(all(is.na(pseudotimes))) {
+    return(NA)
+  }
   true_pseudotimes <- readRDS(df_small$sceset_path)$pst
   abs_kendall <- abs(cor(pseudotimes, true_pseudotimes, method = "kendall", use = "na"))
   return(abs_kendall)

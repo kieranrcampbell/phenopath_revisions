@@ -1,0 +1,6 @@
+*.html
+*cache
+*_files
+*.pdf
+*history
+*.rds

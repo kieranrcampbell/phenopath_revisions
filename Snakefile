@@ -1,10 +1,24 @@
+"""
+Note to self: qvals (just "differential expression")
+is done with limma
 
+
+!!!!!
+You must set
+export RETICULATE_PYTHON=/apps/well/python/3.4.3/bin/
+(or to similar python3 location)
+before running this for the wishbone analysis
+!!!!!
+
+If you run into wishbone trouble an example can be made with
+snakemake data/simulations/pseudotimes/pseudofit_N_200_G_500_p_0.5_rep_1_noise_high_alg_wishbone.csv
+"""
 
 Ns = [200, 500]
 Gs = [500]
 prop_interactions = [0.05, 0.1, 0.2, 0.3, 0.4, 0.5]
 reps = 40
-algorithms_no_pp = ["dpt", "monocle2", "tscan"]
+algorithms_no_pp = ["dpt", "monocle2", "tscan", "wishbone"]
 noises = ["low", "high"]
 
 sig_str = expand("N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}",
@@ -53,12 +67,24 @@ hvg_pseudotimes = expand("data/hvg/pseudotime_{hvg_dset}_{hvg}_{hvg_algorithm}.c
                         hvg_dset = hvg_datasets, hvg = hvgs, hvg_algorithm = hvg_algorithms)
 
 hvgs_shalek = ["500", "1000", "2000", "4000", "8000"]
-shalek_algs = ["dpt", "monocle2", "tscan", "phenopath_init_pc1"]
+shalek_algs = ["dpt", "monocle2", "tscan", "phenopath_init_pc1", "wishbone"]
 
 
 shalek_pseudotimes = expand("data/shalek_cor/pseudotime_hvg_{hvg_shalek}_alg_{hvg_shalek_algorithm}.csv",
                             hvg_shalek = hvgs_shalek, 
                             hvg_shalek_algorithm = shalek_algs)
+
+# Dropout stuff ---
+
+dropout_reps = list(range(1, 41))
+additional_dropout = [0.05, 0.1, 0.2, 0.5, 0.8, 0.9]
+
+dropout_scesets = expand("data/dropout/scesets/sceset_ad_{ad}_rep_{rep}.rds",
+ad = additional_dropout, rep = dropout_reps)
+
+dropout_phenopath_cors = expand("data/dropout/phenopath_cors/phenopath_cor_{ad}_rep_{rep}.csv",
+ad = additional_dropout, rep = dropout_reps)
+
 
 
 # Init and hyper stuff -----
@@ -74,13 +100,19 @@ z_init = z_inits, elbo_tol = elbo_tols, tau_alpha = tau_alphas, ab_beta_ratio = 
 
 rule all:
     input:
-        # phenopath_fdata,
+        shalek_pseudotimes
+        # dropout_phenopath_cors
+        # pseudotimes_no_pp,
+        # # phenopath_fdata,
         # "data/simulations/all_pseudotime_correlations.csv",
         # dex_qvals,
+        # dex_qvals_mast,
+        # dex_qvals_deseq2,
+        # dex_qvals_monocle,
         # "data/simulations/roc.csv",
         # "data/simulations/roc_deseq.csv",
-        # "data/simulations/roc_phenopath.csv",
-        # dex_qvals_mast,
+        # # "data/simulations/roc_phenopath.csv",
+        #
         # "data/simulations/roc_mast.csv",
         # "data/simulations/roc_monocle.csv",
         # linear_psts,
@@ -88,11 +120,28 @@ rule all:
         # "figs/mast.png"
         # hvg_pseudotimes,
         # "figs/hvg.png",
-        # shalek_pseudotimes,
         # "figs/supp_shalek_pca.png",
-        init_hyper_pseudotimes
+        # init_hyper_pseudotimes
         #"data/init_and_hypers/control.csv"
         #"figs/supp_robustness_to_init_hyper.png"
+
+# Dropout
+
+rule simulate_dropout:
+    input:
+        "data/dropout/tec_sceset_qc.rds"
+    output:
+        dropout_scesets
+    shell:
+        "Rscript analysis/dropout/simulate_dropout.R"
+
+rule fit_phenopath_dropout:
+    input:
+        "data/dropout/scesets/sceset_ad_{ad}_rep_{rep}.rds"
+    output:
+        "data/dropout/phenopath_cors/phenopath_cor_{ad}_rep_{rep}.csv"
+    shell:
+        "Rscript analysis/dropout/phenopath_inference.R --input_file {input} --output_file {output}"
 
 
 # PCA plot
@@ -206,7 +255,7 @@ rule parse_pseudotime_results:
     shell:
         "Rscript analysis/simulations/compare_pseudotimes.R --output_file {output}"
 
-rule differential_expression:
+rule differential_expression_limma:
     input:
         pseudotime="data/simulations/pseudotimes/pseudofit_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}_alg_{alg}.csv",
         sceset="data/simulations/scesets/sceset_N_{N}_G_{G}_p_{p}_rep_{rep}_noise_{noise}.rds"
